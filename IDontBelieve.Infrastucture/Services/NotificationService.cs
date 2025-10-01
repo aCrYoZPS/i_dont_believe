@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using IDontBelieve.Core.Services;
 
+
 namespace IDontBelieve.Infrastructure.Services;
 
 public class NotificationService : INotificationService
