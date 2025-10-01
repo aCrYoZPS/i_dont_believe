@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDontBelieveFrontend", "IDontBelieveFrontend\IDontBelieveFrontend.csproj", "{1791561C-CEFD-43ED-9855-1E8A389FF77F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDontBelieve.Frontend", "IDontBelieve.Frontend\IDontBelieve.Frontend.csproj", "{1791561C-CEFD-43ED-9855-1E8A389FF77F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDontBelieve.Core", "IDontBelieve.Core\IDontBelieve.Core.csproj", "{486D7681-A78E-4CBD-AFBF-0257F0860DF3}"
 EndProject
