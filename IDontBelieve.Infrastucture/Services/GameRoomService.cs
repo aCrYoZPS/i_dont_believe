@@ -7,7 +7,9 @@ using IDontBelieve.Infrastructure.Data;
 
 namespace IDontBelieve.Infrastructure.Services;
 
-public class GameRoomService : IGameRoomService
+public class GameRoomService {}
+/*
+: IGameRoomService
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<GameRoomService> _logger;
@@ -211,4 +213,4 @@ public class GameRoomService : IGameRoomService
             .Select(p => p.User)
             .ToListAsync();
     }
-}
+}*/

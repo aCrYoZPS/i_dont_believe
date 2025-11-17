@@ -1,3 +1,4 @@
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using IDontBelieve.Core.Models;
@@ -8,7 +9,7 @@ using IDontBelieve.Infrastructure.Data;
 
 namespace IDontBelieve.Infrastructure.Services;
 
-public class GameService : IGameService
+public class GameService{} /*: IGameService
 {
     private readonly ApplicationDbContext _context;
     private readonly IGameRoomService _gameRoomService;
@@ -291,4 +292,5 @@ public class GameService : IGameService
             .FirstOrDefaultAsync(gs => gs.GameRoomId == roomId);
     }
 }
+*/
 

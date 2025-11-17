@@ -17,6 +17,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(e => e.Email)
             .IsRequired()
             .HasMaxLength(255);
+        
+        builder.Property(e => e.PasswordHash)
+            .IsRequired()
+            .HasMaxLength(255);
+
+        builder.Property(e => e.RefreshToken)
+            .HasMaxLength(500);
             
         builder.Property(e => e.Coins)
             .HasPrecision(18, 2);
@@ -25,9 +32,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasIndex(e => e.Email).IsUnique();
         builder.HasIndex(e => e.Rating);
         
-        builder.HasMany(e => e.GamePlayers)
+        /*builder.HasMany(e => e.GamePlayers)
             .WithOne(e => e.User)
             .HasForeignKey(e => e.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade);*/
     }
 }

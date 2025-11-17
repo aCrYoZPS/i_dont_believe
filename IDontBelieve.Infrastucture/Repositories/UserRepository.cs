@@ -56,4 +56,10 @@ public class UserRepository : Repository<User>, IUserRepository
         
         return !await query.AnyAsync();
     }
+
+    public async Task<User?> GetByRefreshTokenAsync(string refreshToken)
+    {
+        return await _dbSet
+            .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+    }
 }
