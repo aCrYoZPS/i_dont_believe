@@ -3,9 +3,13 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using IDontBelieve.Frontend;
 using IDontBelieve.Frontend.Services;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.JSInterop;
 using IAuthService = IDontBelieve.Frontend.Services.IAuthService;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
+builder.Logging.SetMinimumLevel(LogLevel.Debug);
+
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
@@ -19,5 +23,11 @@ builder.Services.AddHttpClient("AuthHttpClient", client =>
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ILeaderboardHubService>(provider => 
+    new LeaderboardHubService(
+        provider.GetRequiredService<IJSRuntime>(),
+        builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5000"
+    )
+);
 
 await builder.Build().RunAsync();

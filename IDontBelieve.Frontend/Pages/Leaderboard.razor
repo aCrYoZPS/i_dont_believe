@@ -1,0 +1,332 @@
+﻿@page "/leaderboard"
+@using IDontBelieve.Core.Models
+@using IDontBelieve.Frontend.Services
+@inject ILeaderboardHubService LeaderboardService
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<PageTitle>Leaderboard - IDontBelieve</PageTitle>
+
+<div class="leaderboard-page">
+    <!-- Header -->
+    <div class="leaderboard-header">
+        <div class="header-content">
+            <h1 class="title">
+                <span class="trophy">🏆</span>
+                Player Leaderboard
+            </h1>
+            <p class="subtitle">Top players by rating - updates in real-time</p>
+        </div>
+        
+        <div class="header-controls">
+            <div class="connection-status" title="SignalR Connection">
+                <div class="status-indicator @(isConnected ? "connected" : "disconnected")"></div>
+                <span>@(isConnected ? "Live" : "Offline")</span>
+            </div>
+            
+            <div class="auto-refresh-toggle">
+                <label class="toggle-label">
+                    <input type="checkbox" @bind="autoRefresh" @oninput="OnAutoRefreshToggled" />
+                    <span class="toggle-slider"></span>
+                    Auto-refresh
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    @if (isLoading && leaderboard == null)
+    {
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading leaderboard...</p>
+        </div>
+    }
+
+    <!-- Error State -->
+    @if (!isLoading && leaderboard == null && !isConnected)
+    {
+        <div class="error-state">
+            <div class="error-icon">⚠️</div>
+            <h3>Connection Lost</h3>
+            <p>Unable to connect to the leaderboard service.</p>
+            <button class="retry-btn" @onclick="Reconnect">Reconnect</button>
+        </div>
+    }
+
+    <!-- Leaderboard Content -->
+    @if (leaderboard != null)
+    {
+        <div class="leaderboard-content">
+            <!-- Last Updated -->
+            <div class="last-updated">
+                Last updated: <strong>@leaderboard.UpdatedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm:ss")</strong>
+                @if (isConnected)
+                {
+                    <span class="live-badge">LIVE</span>
+                }
+            </div>
+
+            <!-- Leaderboard List -->
+            <div class="leaderboard-list">
+                @foreach (var user in leaderboard.Users)
+                {
+                    <div class="leaderboard-item @GetRankClass(user.Rank) @(user.Rank <= 3 ? "podium" : "")">
+                        <!-- Rank Number -->
+                        <div class="rank-section">
+                            <div class="rank-number">#@user.Rank</div>
+                            @if (user.Rank <= 3)
+                            {
+                                <div class="podium-icon">
+                                    @(user.Rank == 1 ? "🥇" : user.Rank == 2 ? "🥈" : "🥉")
+                                </div>
+                            }
+                        </div>
+
+                        <!-- User Info -->
+                        <div class="user-section">
+                            <div class="username">@user.UserName</div>
+                            <div class="user-stats">
+                                <span class="stat rating">
+                                    <span class="stat-label">Rating:</span>
+                                    <span class="stat-value">@user.Rating</span>
+                                </span>
+                                <span class="stat win-rate">
+                                    <span class="stat-label">Win Rate:</span>
+                                    <span class="stat-value">@(user.WinRate.ToString("P1"))</span>
+                                </span>
+                                <span class="stat games">
+                                    <span class="stat-label">Games:</span>
+                                    <span class="stat-value">@user.GamesPlayed</span>
+                                </span>
+                                <span class="stat wins">
+                                    <span class="stat-label">Wins:</span>
+                                    <span class="stat-value">@user.GamesWon</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar for Win Rate -->
+                        <div class="progress-section">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: @(user.WinRate * 100)%; 
+                                    background: @GetWinRateColor(user.WinRate);"></div>
+                            </div>
+                            <div class="progress-text">@(user.WinRate.ToString("P1"))</div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Empty State -->
+            @if (!leaderboard.Users.Any())
+            {
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <h3>No Players Yet</h3>
+                    <p>Be the first to join the leaderboard!</p>
+                </div>
+            }
+
+            <!-- Controls -->
+            <div class="controls-section">
+                <div class="controls-left">
+                    <label class="count-selector">
+                        Show:
+                        <select @bind="itemsCount" @oninput="OnCountChanged">
+                            <option value="10">Top 10</option>
+                            <option value="25">Top 25</option>
+                            <option value="50">Top 50</option>
+                            <option value="100">Top 100</option>
+                        </select>
+                    </label>
+                </div>
+                
+                <div class="controls-right">
+                    <button class="refresh-btn" @onclick="RefreshLeaderboard" disabled="@isLoading">
+                        <span class="btn-icon">🔄</span>
+                        @(isLoading ? "Refreshing..." : "Refresh Now")
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Footer Stats -->
+    @if (leaderboard != null && leaderboard.Users.Any())
+    {
+        <div class="footer-stats">
+            <div class="stat-card">
+                <div class="stat-value">@leaderboard.Users.Count</div>
+                <div class="stat-label">Players</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">@leaderboard.Users.Max(u => u.Rating)</div>
+                <div class="stat-label">Top Rating</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">@(leaderboard.Users.Average(u => u.WinRate).ToString("P1"))</div>
+                <div class="stat-label">Avg Win Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">@leaderboard.Users.Sum(u => u.GamesPlayed)</div>
+                <div class="stat-label">Total Games</div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private LeaderboardUpdate? leaderboard;
+    private bool isLoading = true;
+    private bool isConnected = false;
+    private bool autoRefresh = true;
+    private int itemsCount = 10;
+    private Timer? autoRefreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        LeaderboardService.OnLeaderboardUpdated += OnLeaderboardUpdated;
+        await InitializeConnection();
+        await LoadLeaderboard();
+        StartAutoRefresh();
+    }
+
+    private async Task InitializeConnection()
+    {
+        try
+        {
+            await LeaderboardService.ConnectAsync();
+            await LeaderboardService.SubscribeToUpdatesAsync();
+            isConnected = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to connect to hub: {ex.Message}");
+            isConnected = false;
+        }
+    }
+
+    private async Task LoadLeaderboard()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            leaderboard = await LeaderboardService.GetLeaderboardAsync(itemsCount);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load leaderboard: {ex.Message}");
+            isConnected = false;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshLeaderboard()
+    {
+        await LoadLeaderboard();
+    }
+
+    private async Task Reconnect()
+    {
+        await InitializeConnection();
+        if (isConnected)
+        {
+            await LoadLeaderboard();
+        }
+    }
+
+    private void OnLeaderboardUpdated(LeaderboardUpdate update)
+    {
+        leaderboard = update;
+        StateHasChanged();
+        
+        // Show notification for new updates
+        if (autoRefresh)
+        {
+            _ = JSRuntime.InvokeVoidAsync("console.log", "Leaderboard updated via SignalR");
+        }
+    }
+
+    private void OnAutoRefreshToggled(ChangeEventArgs e)
+    {
+        autoRefresh = (bool)e.Value!;
+        if (autoRefresh)
+        {
+            StartAutoRefresh();
+        }
+        else
+        {
+            StopAutoRefresh();
+        }
+    }
+
+    private async void OnCountChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newCount))
+        {
+            itemsCount = newCount;
+            await LoadLeaderboard();
+        }
+    }
+
+    private void StartAutoRefresh()
+    {
+        autoRefreshTimer?.Dispose();
+        if (autoRefresh)
+        {
+            autoRefreshTimer = new Timer(async _ =>
+            {
+                if (isConnected && autoRefresh)
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadLeaderboard();
+                    });
+                }
+            }, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+        }
+    }
+
+    private void StopAutoRefresh()
+    {
+        autoRefreshTimer?.Dispose();
+        autoRefreshTimer = null;
+    }
+
+    private string GetRankClass(int rank)
+    {
+        return rank switch
+        {
+            1 => "rank-1",
+            2 => "rank-2",
+            3 => "rank-3",
+            _ => ""
+        };
+    }
+
+    private string GetWinRateColor(double winRate)
+    {
+        return winRate switch
+        {
+            >= 0.7 => "#10b981", // Green
+            >= 0.5 => "#3b82f6", // Blue
+            >= 0.3 => "#f59e0b", // Yellow
+            _ => "#ef4444"       // Red
+        };
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        LeaderboardService.OnLeaderboardUpdated -= OnLeaderboardUpdated;
+        StopAutoRefresh();
+        await LeaderboardService.DisconnectAsync();
+    }
+}

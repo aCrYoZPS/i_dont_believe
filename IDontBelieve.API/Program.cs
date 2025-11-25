@@ -1,6 +1,8 @@
 using System.Text;
+using IDontBelieve.API.Hubs;
 using IDontBelieve.Core.Services;
 using IDontBelieve.Infrastructure.Data;
+using IDontBelieve.Infrastructure.Hubs;
 using IDontBelieve.Infrastructure.Repositories;
 using IDontBelieve.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -16,11 +18,10 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
-// Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]!);
@@ -53,6 +54,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddSignalR();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -73,5 +76,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<GameHub>("/hubs/game");
+app.MapHub<GameRoomHub>("/hubs/gameroom");
+app.MapHub<LeaderboardHub>("/hubs/leaderboard");
 
 app.Run();
