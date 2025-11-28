@@ -1,0 +1,109 @@
+﻿@page "/rooms"
+@* <-- ROUTE CHANGED HERE *@
+@inject GameHubService GameService
+@inject NavigationManager Navigation
+@using IDontBelieve.Frontend.Services
+@implements IDisposable
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Game Lobby</h2>
+        <div class="d-flex gap-2">
+            <span class="badge bg-secondary align-self-center">Logged in as: @GameService.MyUsername</span>
+            <button class="btn btn-primary" @onclick="ShowCreateModal">Create Room</button>
+        </div>
+    </div>
+
+    @if (!isConnected)
+    {
+        <div class="alert alert-info">Connecting to server...</div>
+    }
+    else if (GameService.Rooms.Count == 0)
+    {
+        <div class="text-center p-5 bg-light rounded">
+            <h4>No rooms available</h4>
+            <p>Be the first to create one!</p>
+        </div>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            @foreach (var room in GameService.Rooms)
+            {
+                <div class="col">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">@room.Name</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">Status: @room.Status</h6>
+                            <p class="card-text">
+                                Players: @room.CurrentPlayerCount / @room.MaxPlayers
+                            </p>
+                        </div>
+                        <div class="card-footer bg-transparent border-top-0">
+                            <button class="btn btn-outline-success w-100"
+                                    @onclick="() => JoinRoom(room.Id)"
+                                    disabled="@(room.CurrentPlayerCount >= room.MaxPlayers)">
+                                @(room.CurrentPlayerCount >= room.MaxPlayers ? "Full" : "Join Game")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@* Simple Create Room Section (In real app, use a Modal) *@
+@if (showCreateRoom)
+{
+    <div class="card mt-4 border-primary">
+        <div class="card-header bg-primary text-white">Create New Room</div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label>Room Name</label>
+                <input @bind="newRoomName" class="form-control"/>
+            </div>
+            <div class="mb-3">
+                <label>Max Players</label>
+                <input @bind="newRoomMax" type="number" class="form-control"/>
+            </div>
+            <button class="btn btn-success" @onclick="CreateRoom">Confirm Create</button>
+            <button class="btn btn-secondary" @onclick="() => showCreateRoom = false">Cancel</button>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isConnected = false;
+    private bool showCreateRoom = false;
+    private string newRoomName = "My Game Room";
+    private int newRoomMax = 4;
+
+    protected override async Task OnInitializedAsync()
+    {
+        GameService.OnRoomsUpdated += StateHasChanged;
+
+        await GameService.JoinLobbyAsync();
+        isConnected = true;
+    }
+
+    private void ShowCreateModal() => showCreateRoom = true;
+
+    private async Task CreateRoom()
+    {
+        await GameService.CreateRoomAsync(newRoomName, newRoomMax);
+        showCreateRoom = false;
+    }
+
+    private async Task JoinRoom(int roomId)
+    {
+        // Navigation to the room details page
+        Navigation.NavigateTo($"/room/{roomId}");
+    }
+
+    public void Dispose()
+    {
+        GameService.OnRoomsUpdated -= StateHasChanged;
+    }
+
+}

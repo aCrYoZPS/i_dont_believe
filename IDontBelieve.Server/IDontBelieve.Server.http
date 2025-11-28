@@ -1,0 +1,6 @@
+@IDontBelieve.Server_HostAddress = http://localhost:5107
+
+GET {{IDontBelieve.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
