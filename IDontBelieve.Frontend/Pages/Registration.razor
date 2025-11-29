@@ -1,60 +1,249 @@
-﻿@layout RegistrationLayout
-@page "/register"
+﻿@page "/register"
 @using System.ComponentModel.DataAnnotations
+@using IDontBelieve.Core.DTOs.Auth
+@using IDontBelieve.Frontend.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Register now</PageTitle>
 
 <div class="form-container">
-    <h1 class="form-header">Register</h1>
+    <h1 class="form-header">Create Account</h1>
 
-    <EditForm Model="registrationModel" OnValidSubmit="HandleValidSubmit" class="registration-form">
-        <DataAnnotationsValidator/>
+    <EditForm Model="registerModel" OnValidSubmit="HandleValidSubmit" class="registration-form">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
 
-        <div>
-            <label>Email:</label>
-            <InputText @bind-Value="registrationModel.Email" type="email" spellcheck="false"/>
-            <ValidationMessage For="@(() => registrationModel.Email)"/>
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <InputText id="email" @bind-Value="registerModel.Email" class="form-control" placeholder="Enter your email" />
+            <ValidationMessage For="@(() => registerModel.Email)" />
         </div>
 
-        <div>
-            <label>Nickname:</label>
-            <InputText @bind-Value="registrationModel.Nickname" type="text" spellcheck="false"/>
-            <ValidationMessage For="@(() => registrationModel.Nickname)"/>
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <InputText id="username" @bind-Value="registerModel.UserName" class="form-control" placeholder="Choose a username" />
+            <ValidationMessage For="@(() => registerModel.UserName)" />
+            @if (!string.IsNullOrEmpty(usernameAvailability))
+            {
+                <div class="availability-message @(usernameAvailability == "✓ Available" ? "available" : "taken")">
+                    @usernameAvailability
+                </div>
+            }
         </div>
 
-        <div>
-            <label>Password:</label>
-            <InputText @bind-Value="registrationModel.Password" type="password" spellcheck="false"/>
-            <ValidationMessage For="@(() => registrationModel.Password)"/>
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <InputText id="password" @bind-Value="registerModel.Password" type="password" class="form-control" placeholder="Enter your password" />
+            <ValidationMessage For="@(() => registerModel.Password)" />
+            <div class="password-strength">
+                <div class="strength-bar">
+                    <div class="strength-fill" style="width: @(GetPasswordStrength() * 25)%; background-color: @GetPasswordStrengthColor();"></div>
+                </div>
+                <span class="strength-text">@GetPasswordStrengthText()</span>
+            </div>
         </div>
 
-        <button type="submit">Register</button>
+        <div class="form-group">
+            <label for="confirmPassword">Confirm Password:</label>
+            <InputText id="confirmPassword" @bind-Value="confirmPassword" type="password" class="form-control" placeholder="Confirm your password" />
+            @if (!string.IsNullOrEmpty(confirmPassword) && registerModel.Password != confirmPassword)
+            {
+                <div class="validation-message">Passwords do not match</div>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <strong>Error:</strong> @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">
+                <strong>Success!</strong> @successMessage
+            </div>
+        }
+
+        <button type="submit" class="btn btn-primary btn-block" disabled="@isLoading">
+            @if (isLoading)
+            {
+                <span>
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    Creating Account...
+                </span>
+            }
+            else
+            {
+                <span>Create Account</span>
+            }
+        </button>
+
+        <div class="form-footer">
+            <p>Already have an account? <a href="/login" class="link">Sign in here</a></p>
+        </div>
     </EditForm>
+</div>
 
-    @code {
-        private RegistrationModel registrationModel = new RegistrationModel();
 
-        private void HandleValidSubmit()
-        {
-            // Handle registration logic here
-            // For example, send registrationModel to backend service for processing
-        }
+@code {
+    private RegisterRequest registerModel = new RegisterRequest();
+    private string confirmPassword = string.Empty;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private string usernameAvailability = string.Empty;
+    private bool isLoading = false;
+    private System.Threading.Timer? usernameCheckTimer;
 
-        public class RegistrationModel
-        {
-            [Required(ErrorMessage = "Email is required.")]
-            [EmailAddress(ErrorMessage = "Invalid email format.")]
-            public string? Email { get; set; }
-
-            [Required(ErrorMessage = "Nickname is required.")]
-            public string? Nickname { get; set; }
-
-            [Required(ErrorMessage = "Password is required.")]
-            [MinLength(6, ErrorMessage = "Password must be at least 6 characters.")]
-            [MaxLength(32, ErrorMessage = "Password must be at most 32 characters")]
-            public string? Password { get; set; }
-        }
-
+    protected override void OnInitialized()
+    {
+        registerModel = new RegisterRequest();
     }
 
-</div>
+    private async void HandleValidSubmit()
+    {
+        if (registerModel.Password != confirmPassword)
+        {
+            errorMessage = "Passwords do not match";
+            return;
+        }
+
+        isLoading = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await AuthService.RegisterAsync(registerModel);
+
+            if (result != null)
+            {
+                successMessage = "Account created successfully! Redirecting to profile...";
+                StateHasChanged();
+                
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/profile", true);
+            }
+            else
+            {
+                errorMessage = "Registration failed. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Registration error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnUsernameChanged(ChangeEventArgs e)
+    {
+        var username = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
+        {
+            usernameAvailability = string.Empty;
+            return;
+        }
+
+        // Debounce the username check
+        usernameCheckTimer?.Dispose();
+        usernameCheckTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                // Here you would typically call an API to check username availability
+                // For now, we'll simulate it with a simple check
+                var isAvailable = await CheckUsernameAvailability(username);
+                usernameAvailability = isAvailable ? "✓ Available" : "✗ Username taken";
+                StateHasChanged();
+            });
+        }, null, 500, Timeout.Infinite);
+    }
+
+    private async Task<bool> CheckUsernameAvailability(string username)
+    {
+        // Simulate API call delay
+        await Task.Delay(300);
+        
+        // Simple simulation - consider some names as taken
+        var takenUsernames = new[] { "admin", "user", "test", "administrator" };
+        return !takenUsernames.Contains(username.ToLower());
+    }
+
+    private int GetPasswordStrength()
+    {
+        if (string.IsNullOrEmpty(registerModel.Password))
+            return 0;
+
+        var strength = 0;
+        
+        if (registerModel.Password.Length >= 6) strength++;
+        if (registerModel.Password.Length >= 8) strength++;
+        if (registerModel.Password.Any(char.IsDigit)) strength++;
+        if (registerModel.Password.Any(char.IsUpper) && registerModel.Password.Any(char.IsLower)) strength++;
+        if (registerModel.Password.Any(ch => !char.IsLetterOrDigit(ch))) strength++;
+
+        return Math.Min(strength, 4);
+    }
+
+    private string GetPasswordStrengthColor()
+    {
+        var strength = GetPasswordStrength();
+        return strength switch
+        {
+            0 => "#dc3545", // Red
+            1 => "#dc3545", // Red
+            2 => "#ffc107", // Yellow
+            3 => "#17a2b8", // Blue
+            4 => "#28a745", // Green
+            _ => "#dc3545"
+        };
+    }
+
+    private string GetPasswordStrengthText()
+    {
+        var strength = GetPasswordStrength();
+        return strength switch
+        {
+            0 => "Very Weak",
+            1 => "Weak",
+            2 => "Fair",
+            3 => "Good",
+            4 => "Strong",
+            _ => "Very Weak"
+        };
+    }
+
+    public void Dispose()
+    {
+        usernameCheckTimer?.Dispose();
+    }
+
+    // Local model for the form
+    public class RegisterModel
+    {
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email format.")]
+        [StringLength(255, ErrorMessage = "Email is too long.")]
+        public string? Email { get; set; }
+
+        [Required(ErrorMessage = "Username is required.")]
+        [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters.")]
+        [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "Username can only contain letters, numbers, and underscores.")]
+        public string? UserName { get; set; }
+
+        [Required(ErrorMessage = "Password is required.")]
+        [StringLength(32, MinimumLength = 6, ErrorMessage = "Password must be between 6 and 32 characters.")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$", 
+            ErrorMessage = "Password must contain at least one uppercase letter, one lowercase letter, and one number.")]
+        public string? Password { get; set; }
+    }
+}

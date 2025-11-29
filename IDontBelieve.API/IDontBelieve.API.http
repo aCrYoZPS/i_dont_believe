@@ -1,0 +1,6 @@
+@IDontBelieve.API_HostAddress = http://localhost:5240
+
+GET {{IDontBelieve.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

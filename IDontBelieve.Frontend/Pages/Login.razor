@@ -1,6 +1,8 @@
-﻿@layout RegistrationLayout
-@page "/login"
+﻿@page "/login"
 @using System.ComponentModel.DataAnnotations
+@using IDontBelieve.Frontend.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
 
 <PageTitle>Login now</PageTitle>
 
@@ -9,6 +11,7 @@
 
     <EditForm Model="loginModel" OnValidSubmit="HandleValidSubmit" class="registration-form">
         <DataAnnotationsValidator/>
+        <ValidationSummary/>
 
         <div>
             <label>Email:</label>
@@ -22,28 +25,63 @@
             <ValidationMessage For="@(() => loginModel.Password)"/>
         </div>
 
-        <button type="submit">Log In</button>
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <button type="submit" disabled="@isLoading">@(isLoading ? "Logging in..." : "Log In")</button>
     </EditForm>
 
-    @code {
-        private LoginModel loginModel = new LoginModel();
+    <p>Don't have an account? <a href="/register">Register here</a></p>
+</div>
 
-        private void HandleValidSubmit()
+@code {
+    private LoginModel loginModel = new LoginModel();
+    private string errorMessage = string.Empty;
+    private bool isLoading = false;
+
+    private async void HandleValidSubmit()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
         {
-            // Handle registration logic here
-            // For example, send registrationModel to backend service for processing
-        }
+            var result = await AuthService.LoginAsync(new Core.DTOs.Auth.LoginRequest
+            {
+                Email = loginModel.Email!,
+                Password = loginModel.Password!
+            });
 
-        public class LoginModel
+            if (result != null)
+            {
+                Navigation.NavigateTo("/profile", true);
+            }
+            else
+            {
+                errorMessage = "Invalid login attempt";
+            }
+        }
+        catch (Exception ex)
         {
-            [Required(ErrorMessage = "Email is required.")]
-            [EmailAddress(ErrorMessage = "Invalid email format.")]
-            public string? Email { get; set; }
-
-            [Required(ErrorMessage = "Password is required.")]
-            public string? Password { get; set; }
+            errorMessage = "An error occurred during login";
         }
-
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
-</div>
+    public class LoginModel
+    {
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email format.")]
+        public string? Email { get; set; }
+
+        [Required(ErrorMessage = "Password is required.")]
+        public string? Password { get; set; }
+    }
+}

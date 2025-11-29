@@ -9,17 +9,19 @@ public class ApplicationDbContext : DbContext
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
     public DbSet<User> Users { get; set; }
-    public DbSet<GameRoom> GameRooms { get; set; }
+    
+    /*public DbSet<GameRoom> GameRooms { get; set; }
     public DbSet<GameState> GameStates { get; set; }
     public DbSet<GameMove> GameMoves { get; set; }
-    public DbSet<GamePlayer> GamePlayers { get; set; }
+    public DbSet<GamePlayer> GamePlayers { get; set; }*/
+    
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.ApplyConfiguration(new UserConfiguration());
-        modelBuilder.ApplyConfiguration(new GameRoomConfiguration());
+        /*modelBuilder.ApplyConfiguration(new GameRoomConfiguration());
         modelBuilder.ApplyConfiguration(new GameStateConfiguration());
         
         modelBuilder.Entity<GamePlayer>(entity =>
@@ -46,6 +48,6 @@ public class ApplicationDbContext : DbContext
                   .OnDelete(DeleteBehavior.Cascade);
                   
             entity.HasIndex(e => new { e.GameStateId, e.MoveNumber }).IsUnique();
-        });
+        });*/
     }
 }
