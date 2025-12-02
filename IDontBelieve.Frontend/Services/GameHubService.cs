@@ -20,7 +20,7 @@ public class GameHubService : IAsyncDisposable
 
     public GameHubService(NavigationManager navManager)
     {
-        var serverUrl = "http://localhost:5107/gameroomhub";
+        var serverUrl = "http://localhost:5000/hubs/gameroom";
 
         _hubConnection = new HubConnectionBuilder()
             .WithUrl(serverUrl)
@@ -91,6 +91,8 @@ public class GameHubService : IAsyncDisposable
         if (_hubConnection.State == HubConnectionState.Disconnected)
         {
             await _hubConnection.StartAsync();
+            Console.WriteLine("dvinsdvnsvnsivnsjvnsi");
+            Console.WriteLine(_hubConnection.State);
         }
     }
 

@@ -81,6 +81,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Console.WriteLine("yobanaya zalupa");
         GameService.OnRoomsUpdated += StateHasChanged;
 
         await GameService.JoinLobbyAsync();
