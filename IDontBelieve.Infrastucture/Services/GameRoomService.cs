@@ -1,23 +1,18 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using IDontBelieve.Core.Models;
 using IDontBelieve.Core.Services;
 using IDontBelieve.Core.DTOs;
-using IDontBelieve.Infrastructure.Data;
-using System.Linq;
 
 namespace IDontBelieve.Infrastructure.Services;
 
 public class GameRoomService 
 : IGameRoomService
 {
-    private readonly ApplicationDbContext _context;
     private readonly ILogger<GameRoomService> _logger;
     private readonly List<GameRoom> _rooms = new();
 
-    public GameRoomService(ApplicationDbContext context, ILogger<GameRoomService> logger)
+    public GameRoomService(ILogger<GameRoomService> logger)
     {
-        _context = context;
         _logger = logger;
     }
 
@@ -48,7 +43,6 @@ public class GameRoomService
     {
         var query = _rooms.AsQueryable();
         
-        // Фильтрация
         if (filter.ShowOnlyJoinable == true)
         {
             query = query.Where(r => r.Status == GameRoomStatus.Waiting);
@@ -85,18 +79,13 @@ public class GameRoomService
         return _rooms.FirstOrDefault(r => r.Id == roomId);
     }
 
-    public GameRoom? GetRoomWithPlayersAsync(int roomId)
-    {
-        return await _context.GameRooms
-            .Include(r => r.Players)
-            .ThenInclude(p => p.User)
-            .Include(r => r.CreatedBy)
-            .FirstOrDefaultAsync(r => r.Id == roomId);
-    }
-
+    public GameRoom? GetRoomWithPlayersAsync(int roomId) => 
+        GetRoomByIdAsync(roomId);
+    
     public JoinRoomResultDto JoinRoomAsync(int roomId, int userId)
     {
-        var room = await GetRoomWithPlayersAsync(roomId);
+        var room = _rooms.FirstOrDefault(r => r.Id == roomId);
+
         if (room == null)
         {
             return new JoinRoomResultDto
@@ -105,49 +94,39 @@ public class GameRoomService
                 Message = "Room not found"
             };
         }
-
+        
+        var result = JoinRoomInternal(room, userId);
+        return result;
+    }
+    
+    private JoinRoomResultDto JoinRoomInternal(GameRoom room, int userId)
+    {
         if (room.Status != GameRoomStatus.Waiting)
         {
-            return new JoinRoomResultDto
-            {
-                Success = false,
-                Message = "Game has already started"
-            };
+            return new JoinRoomResultDto { Success = false, Message = "Game has already started" };
         }
 
         if (room.Players.Count >= room.MaxPlayers)
         {
-            return new JoinRoomResultDto
-            {
-                Success = false,
-                Message = "Room is full"
-            };
+            return new JoinRoomResultDto { Success = false, Message = "Room is full" };
         }
 
         if (room.Players.Any(p => p.UserId == userId))
         {
-            return new JoinRoomResultDto
-            {
-                Success = true,
-                Message = "You are already in the room",
-                Room = room
-            };
+            return new JoinRoomResultDto { Success = true, Message = "You are already in the room", Room = room };
         }
 
         var player = new GamePlayer
         {
-            GameRoomId = roomId,
+            GameRoomId = room.Id,
             UserId = userId,
             Position = room.Players.Count,
             Status = PlayerStatus.Waiting
         };
 
-        //_context.GamePlayers.Add(player);
-        //await _context.SaveChangesAsync();
+        room.Players.Add(player);
 
-        _logger.LogInformation("User {UserId} joined room {RoomId}", userId, roomId);
-
-        room = GetRoomWithPlayersAsync(roomId);
+        _logger.LogInformation("User {UserId} joined room {RoomId}", userId, room.Id);
         
         return new JoinRoomResultDto
         {
@@ -159,55 +138,55 @@ public class GameRoomService
 
     public bool LeaveRoomAsync(int roomId, int userId)
     {
-        var player = await _context.GamePlayers
-            .FirstOrDefaultAsync(p => p.GameRoomId == roomId && p.UserId == userId);
+        var room = _rooms.FirstOrDefault(r => r.Id == roomId);
+        if (room == null) return false;
 
+        var player = room.Players.FirstOrDefault(p => p.UserId == userId);
         if (player == null) return false;
-
-        _context.GamePlayers.Remove(player);
-
-        var playersLeft = await _context.GamePlayers
-            .CountAsync(p => p.GameRoomId == roomId);
-
-        if (playersLeft == 1) 
+        
+        room.Players.Remove(player);
+        
+        if (room.Players.Count == 0) 
         {
-            var room = await _context.GameRooms.FindAsync(roomId);
-            if (room != null)
-            {
-                _context.GameRooms.Remove(room);
-            }
+            _rooms.Remove(room);
         }
-
-        await _context.SaveChangesAsync();
 
         _logger.LogInformation("User {UserId} left room {RoomId}", userId, roomId);
         return true;
     }
 
+
     public bool CanStartGameAsync(int roomId)
     {
-        var room = await GetRoomWithPlayersAsync(roomId);
-        return room != null && room.CanStart && room.Status == GameRoomStatus.Waiting;
+        var room = _rooms.FirstOrDefault(r => r.Id == roomId);
+        bool canStart = room != null && room.CanStart && room.Status == GameRoomStatus.Waiting;
+        return canStart;
     }
 
     public void UpdateRoomStatusAsync(int roomId, GameRoomStatus status)
     {
-        var room = await GetRoomByIdAsync(roomId);
+        var room = _rooms.FirstOrDefault(r => r.Id == roomId);
         if (room != null)
         {
             room.Status = status;
-            await _context.SaveChangesAsync();
-            
             _logger.LogInformation("Room {RoomId} status updated to {Status}", roomId, status);
         }
     }
 
     public List<User> GetRoomPlayersAsync(int roomId)
     {
-        return await _context.GamePlayers
-            .Where(p => p.GameRoomId == roomId)
-            .Include(p => p.User)
+        
+        var room = _rooms.FirstOrDefault(r => r.Id == roomId);
+        if (room == null)
+        {
+            return new List<User>();
+        }
+
+        var users = room.Players
             .Select(p => p.User)
-            .ToListAsync();
+            .Where(u => u != null)
+            .ToList();
+
+        return users;
     }
 }
