@@ -4,15 +4,16 @@ using IDontBelieve.Core.Models;
 using IDontBelieve.Core.Services;
 using IDontBelieve.Core.DTOs;
 using IDontBelieve.Infrastructure.Data;
+using System.Linq;
 
 namespace IDontBelieve.Infrastructure.Services;
 
-public class GameRoomService {}
-/*
+public class GameRoomService 
 : IGameRoomService
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<GameRoomService> _logger;
+    private readonly List<GameRoom> _rooms = new();
 
     public GameRoomService(ApplicationDbContext context, ILogger<GameRoomService> logger)
     {
@@ -20,7 +21,7 @@ public class GameRoomService {}
         _logger = logger;
     }
 
-    public async Task<GameRoom> CreateRoomAsync(CreateRoomDto dto, int userId)
+    public GameRoom CreateRoomAsync(CreateRoomDto dto, int userId)
     {
         var room = new GameRoom
         {
@@ -32,11 +33,10 @@ public class GameRoomService {}
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = userId
         };
-
-        _context.GameRooms.Add(room);
-        await _context.SaveChangesAsync();
-
-        await JoinRoomAsync(room.Id, userId);
+        
+        _rooms.Add(room);
+        
+        JoinRoomAsync(room.Id, userId);
 
         _logger.LogInformation("Created room {RoomName} (ID: {RoomId}) by user {UserId}", 
             dto.Name, room.Id, userId);
@@ -44,51 +44,48 @@ public class GameRoomService {}
         return room;
     }
 
-    public async Task<List<GameRoom>> GetAvailableRoomsAsync(RoomFilterDto filter)
+    public List<GameRoom> GetAvailableRoomsAsync(RoomFilterDto filter)
     {
-        var query = _context.GameRooms
-            .Include(r => r.Players)
-            .ThenInclude(p => p.User)
-            .Include(r => r.CreatedBy)
-            .AsQueryable();
-
+        var query = _rooms.AsQueryable();
+        
+        // Фильтрация
         if (filter.ShowOnlyJoinable == true)
         {
             query = query.Where(r => r.Status == GameRoomStatus.Waiting);
         }
-
+        
         if (filter.DeckType.HasValue)
         {
             query = query.Where(r => r.DeckType == filter.DeckType.Value);
         }
-
+        
         if (filter.MaxPlayers.HasValue)
         {
             query = query.Where(r => r.MaxPlayers == filter.MaxPlayers.Value);
         }
-
+        
         if (!string.IsNullOrEmpty(filter.RoomName))
         {
-            query = query.Where(r => r.Name.Contains(filter.RoomName));
+            query = query.Where(r => r.Name.Contains(filter.RoomName, StringComparison.OrdinalIgnoreCase));
         }
-
+        
         if (filter.ShowOnlyJoinable == true)
         {
             query = query.Where(r => r.Players.Count < r.MaxPlayers);
         }
+        
+        var result = query.OrderBy(r => r.CreatedAt).ToList();
 
-        return await query
-            .OrderBy(r => r.CreatedAt)
-            .ToListAsync();
+        return result;
     }
 
-    public async Task<GameRoom?> GetRoomByIdAsync(int roomId)
+    public GameRoom? GetRoomByIdAsync(int roomId)
+    
     {
-        return await _context.GameRooms
-            .FirstOrDefaultAsync(r => r.Id == roomId);
+        return _rooms.FirstOrDefault(r => r.Id == roomId);
     }
 
-    public async Task<GameRoom?> GetRoomWithPlayersAsync(int roomId)
+    public GameRoom? GetRoomWithPlayersAsync(int roomId)
     {
         return await _context.GameRooms
             .Include(r => r.Players)
@@ -97,7 +94,7 @@ public class GameRoomService {}
             .FirstOrDefaultAsync(r => r.Id == roomId);
     }
 
-    public async Task<JoinRoomResultDto> JoinRoomAsync(int roomId, int userId)
+    public JoinRoomResultDto JoinRoomAsync(int roomId, int userId)
     {
         var room = await GetRoomWithPlayersAsync(roomId);
         if (room == null)
@@ -145,12 +142,12 @@ public class GameRoomService {}
             Status = PlayerStatus.Waiting
         };
 
-        _context.GamePlayers.Add(player);
-        await _context.SaveChangesAsync();
+        //_context.GamePlayers.Add(player);
+        //await _context.SaveChangesAsync();
 
         _logger.LogInformation("User {UserId} joined room {RoomId}", userId, roomId);
 
-        room = await GetRoomWithPlayersAsync(roomId);
+        room = GetRoomWithPlayersAsync(roomId);
         
         return new JoinRoomResultDto
         {
@@ -160,7 +157,7 @@ public class GameRoomService {}
         };
     }
 
-    public async Task<bool> LeaveRoomAsync(int roomId, int userId)
+    public bool LeaveRoomAsync(int roomId, int userId)
     {
         var player = await _context.GamePlayers
             .FirstOrDefaultAsync(p => p.GameRoomId == roomId && p.UserId == userId);
@@ -187,13 +184,13 @@ public class GameRoomService {}
         return true;
     }
 
-    public async Task<bool> CanStartGameAsync(int roomId)
+    public bool CanStartGameAsync(int roomId)
     {
         var room = await GetRoomWithPlayersAsync(roomId);
         return room != null && room.CanStart && room.Status == GameRoomStatus.Waiting;
     }
 
-    public async Task UpdateRoomStatusAsync(int roomId, GameRoomStatus status)
+    public void UpdateRoomStatusAsync(int roomId, GameRoomStatus status)
     {
         var room = await GetRoomByIdAsync(roomId);
         if (room != null)
@@ -205,7 +202,7 @@ public class GameRoomService {}
         }
     }
 
-    public async Task<List<User>> GetRoomPlayersAsync(int roomId)
+    public List<User> GetRoomPlayersAsync(int roomId)
     {
         return await _context.GamePlayers
             .Where(p => p.GameRoomId == roomId)
@@ -213,4 +210,4 @@ public class GameRoomService {}
             .Select(p => p.User)
             .ToListAsync();
     }
-}*/
+}
