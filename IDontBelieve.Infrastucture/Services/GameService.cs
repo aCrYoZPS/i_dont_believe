@@ -11,23 +11,30 @@ namespace IDontBelieve.Infrastructure.Services;
 
 public class GameService : IGameService
 {
-    private readonly ApplicationDbContext _context;
+    //private readonly ApplicationDbContext _context;
     private readonly IGameRoomService _gameRoomService;
     private readonly ILogger<GameService> _logger;
 
-    public GameService(ApplicationDbContext context, IGameRoomService gameRoomService, ILogger<GameService> logger)
+    private readonly List<GameState> _gameStates = new();
+    private readonly List<GameMove> _gameMoves = new();
+
+    //public GameService(ApplicationDbContext context, IGameRoomService gameRoomService, ILogger<GameService> logger)
+    public GameService(IGameRoomService gameRoomService, ILogger<GameService> logger)
+
     {
-        _context = context;
+        //_context = context;
         _gameRoomService = gameRoomService;
         _logger = logger;
     }
 
     public async Task<bool> StartGameAsync(int roomId)
     {
-        var room = await _context.GameRooms
+        /*var room = await _context.GameRooms
             .Include(r => r.Players)
             .ThenInclude(p => p.User)
-            .FirstOrDefaultAsync(r => r.Id == roomId);
+            .FirstOrDefaultAsync(r => r.Id == roomId);*/
+        
+        var room = _gameRoomService.GetRoomByIdAsync(roomId);
 
         if (room == null || !room.CanStart || room.Status != GameRoomStatus.Waiting)
         {
@@ -56,11 +63,11 @@ public class GameService : IGameService
             LastMoveAt = DateTime.UtcNow
         };
 
-        _context.GameStates.Add(gameState);
+        //_context.GameStates.Add(gameState);
         
         room.Status = GameRoomStatus.InProgress;
 
-        await _context.SaveChangesAsync();
+        //await _context.SaveChangesAsync();
 
         _logger.LogInformation("Game started in room {RoomId} with {PlayerCount} players", 
             roomId, room.Players.Count);
@@ -70,11 +77,13 @@ public class GameService : IGameService
 
     public async Task<GameStateDto?> GetGameStateAsync(int roomId)
     {
-        var gameState = await _context.GameStates
+        /*var gameState = await _context.GameStates
             .Include(gs => gs.GameRoom)
             .ThenInclude(gr => gr.Players)
             .ThenInclude(p => p.User)
-            .FirstOrDefaultAsync(gs => gs.GameRoomId == roomId);
+            .FirstOrDefaultAsync(gs => gs.GameRoomId == roomId);*/
+        
+        var gameState = _gameStates.FirstOrDefault(gs => gs.GameRoomId == roomId);
 
         if (gameState == null) return null;
 
@@ -160,7 +169,8 @@ public class GameService : IGameService
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.GameMoves.Add(gameMove);
+        _gameMoves.Add(gameMove);
+        //_context.GameMoves.Add(gameMove);
 
         if (GameLogic.IsGameEnded(gameState.GameRoom.Players.ToList()))
         {
@@ -182,7 +192,7 @@ public class GameService : IGameService
             gameState.CurrentPlayerId);
         gameState.LastMoveAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        //await _context.SaveChangesAsync();
 
         return new GameMoveResultDto
         {
@@ -224,7 +234,7 @@ public class GameService : IGameService
             lastMove.Outcome = MoveOutcome.NotBelieve;
         }
 
-        await _context.SaveChangesAsync();
+        //await _context.SaveChangesAsync();
 
         return new GameMoveResultDto
         {
@@ -236,10 +246,12 @@ public class GameService : IGameService
 
     public async Task EndGameAsync(int roomId, int winnerId)
     {
-        var gameState = await _context.GameStates
+        /*var gameState = await _context.GameStates
             .Include(gs => gs.GameRoom)
             .ThenInclude(gr => gr.Players)
-            .FirstOrDefaultAsync(gs => gs.GameRoomId == roomId);
+            .FirstOrDefaultAsync(gs => gs.GameRoomId == roomId);*/
+        
+        var gameState = _gameStates.FirstOrDefault(g => g.GameRoomId == roomId);
 
         if (gameState == null) return;
 
@@ -258,7 +270,7 @@ public class GameService : IGameService
             }
         }
 
-        await _context.SaveChangesAsync();
+        //await _context.SaveChangesAsync();
 
         _logger.LogInformation("Game ended in room {RoomId}, winner: {WinnerId}", roomId, winnerId);
     }
@@ -276,20 +288,24 @@ public class GameService : IGameService
 
     public async Task<bool> IsPlayerTurnAsync(int roomId, int playerId)
     {
-        var gameState = await _context.GameStates
-            .FirstOrDefaultAsync(gs => gs.GameRoomId == roomId);
+        /*var gameState = await _context.GameStates
+            .FirstOrDefaultAsync(gs => gs.GameRoomId == roomId);*/
+        
+        var gameState = _gameStates.FirstOrDefault(gs => gs.GameRoomId == roomId);
 
         return gameState?.CurrentPlayerId == playerId;
     }
 
     private async Task<GameState?> GetGameStateWithPlayersAsync(int roomId)
     {
-        return await _context.GameStates
+        /*return await _context.GameStates
             .Include(gs => gs.GameRoom)
             .ThenInclude(gr => gr.Players)
             .ThenInclude(p => p.User)
             .Include(gs => gs.MoveHistory)
-            .FirstOrDefaultAsync(gs => gs.GameRoomId == roomId);
+            .FirstOrDefaultAsync(gs => gs.GameRoomId == roomId);*/
+        
+        return _gameStates.FirstOrDefault(gs => gs.GameRoomId == roomId);
     }
 }
 

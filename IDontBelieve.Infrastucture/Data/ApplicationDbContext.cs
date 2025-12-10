@@ -10,10 +10,10 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<User> Users { get; set; }
     
-    public DbSet<GameRoom> GameRooms { get; set; }
+    /*public DbSet<GameRoom> GameRooms { get; set; }
     public DbSet<GameState> GameStates { get; set; }
     public DbSet<GameMove> GameMoves { get; set; }
-    public DbSet<GamePlayer> GamePlayers { get; set; }
+    public DbSet<GamePlayer> GamePlayers { get; set; }*/
     
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -21,23 +21,23 @@ public class ApplicationDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.ApplyConfiguration(new UserConfiguration());
-        modelBuilder.ApplyConfiguration(new GameRoomConfiguration());
+        /*modelBuilder.ApplyConfiguration(new GameRoomConfiguration());
         modelBuilder.ApplyConfiguration(new GameStateConfiguration());
         
-        modelBuilder.Entity<GamePlayer>(entity =>
+        /*modelBuilder.Entity<GamePlayer>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Status).HasConversion<int>();
             
-            entity.HasOne(e => e.User)
+            /*entity.HasOne(e => e.User)
                   .WithMany(e => e.GameRoom)
                   .HasForeignKey(e => e.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
+                  .OnDelete(DeleteBehavior.Cascade);#1#
                   
             entity.HasIndex(e => new { e.GameRoomId, e.UserId }).IsUnique();
-        });
+        });*/
 
-        modelBuilder.Entity<GameMove>(entity =>
+        /*modelBuilder.Entity<GameMove>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Outcome).HasConversion<int>();
@@ -48,6 +48,6 @@ public class ApplicationDbContext : DbContext
                   .OnDelete(DeleteBehavior.Cascade);
                   
             entity.HasIndex(e => new { e.GameStateId, e.MoveNumber }).IsUnique();
-        });
+        });*/
     }
 }
