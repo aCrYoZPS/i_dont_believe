@@ -37,7 +37,7 @@ public class GameRoomHub : Hub
                 Timestamp = DateTime.UtcNow
             });
 
-            var rooms = await _gameRoomService.GetAvailableRoomsAsync(new RoomFilterDto());
+            var rooms = _gameRoomService.GetAvailableRoomsAsync(new RoomFilterDto());
             await Clients.Caller.SendAsync("RoomsList", rooms);
         }
         catch (Exception ex)
@@ -73,7 +73,7 @@ public class GameRoomHub : Hub
     {
         try
         {
-            var room = await _gameRoomService.CreateRoomAsync(roomDto, userId);
+            var room = _gameRoomService.CreateRoomAsync(roomDto, userId);
             
             _logger.LogInformation("Room {RoomName} (ID: {RoomId}) created by user {UserId}", 
                 room.Name, room.Id, userId);
@@ -99,7 +99,7 @@ public class GameRoomHub : Hub
     {
         try
         {
-            var result = await _gameRoomService.JoinRoomAsync(roomId, userId);
+            var result = _gameRoomService.JoinRoomAsync(roomId, userId);
             
             if (!result.Success)
             {
@@ -159,7 +159,7 @@ public class GameRoomHub : Hub
                 _roomConnections[roomId].Remove(Context.ConnectionId);
             }
             
-            await _gameRoomService.LeaveRoomAsync(roomId, userId);
+            _gameRoomService.LeaveRoomAsync(roomId, userId);
             
             _logger.LogInformation("User {Username} left room {RoomId}", username, roomId);
             
@@ -170,7 +170,7 @@ public class GameRoomHub : Hub
                 Timestamp = DateTime.UtcNow
             });
             
-            var room = await _gameRoomService.GetRoomByIdAsync(roomId);
+            var room = _gameRoomService.GetRoomByIdAsync(roomId);
             if (room != null)
             {
                 await Clients.Group("Lobby").SendAsync("RoomUpdated", room);
@@ -190,7 +190,7 @@ public class GameRoomHub : Hub
     {
         try
         {
-            var canStart = await _gameRoomService.CanStartGameAsync(roomId);
+            var canStart = _gameRoomService.CanStartGameAsync(roomId);
             if (!canStart)
             {
                 await Clients.Caller.SendAsync("GameStartFailed", new {
@@ -209,7 +209,7 @@ public class GameRoomHub : Hub
                 Timestamp = DateTime.UtcNow
             });
             
-            await _gameRoomService.UpdateRoomStatusAsync(roomId, 
+            _gameRoomService.UpdateRoomStatusAsync(roomId, 
                 IDontBelieve.Core.Models.GameRoomStatus.InProgress);
         }
         catch (Exception ex)
@@ -247,7 +247,7 @@ public class GameRoomHub : Hub
         try
         {
             filter ??= new RoomFilterDto();
-            var rooms = await _gameRoomService.GetAvailableRoomsAsync(filter);
+            var rooms = _gameRoomService.GetAvailableRoomsAsync(filter);
             await Clients.Caller.SendAsync("RoomsList", rooms);
         }
         catch (Exception ex)
@@ -261,7 +261,7 @@ public class GameRoomHub : Hub
     {
         try
         {
-            var room = await _gameRoomService.GetRoomWithPlayersAsync(roomId);
+            var room = _gameRoomService.GetRoomWithPlayersAsync(roomId);
             if (room != null)
             {
                 await Clients.Caller.SendAsync("RoomDetails", room);

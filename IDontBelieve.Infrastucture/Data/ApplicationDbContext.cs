@@ -24,20 +24,20 @@ public class ApplicationDbContext : DbContext
         /*modelBuilder.ApplyConfiguration(new GameRoomConfiguration());
         modelBuilder.ApplyConfiguration(new GameStateConfiguration());
         
-        modelBuilder.Entity<GamePlayer>(entity =>
+        /*modelBuilder.Entity<GamePlayer>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Status).HasConversion<int>();
             
-            entity.HasOne(e => e.User)
-                  .WithMany(e => e.GamePlayers)
+            /*entity.HasOne(e => e.User)
+                  .WithMany(e => e.GameRoom)
                   .HasForeignKey(e => e.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
+                  .OnDelete(DeleteBehavior.Cascade);#1#
                   
             entity.HasIndex(e => new { e.GameRoomId, e.UserId }).IsUnique();
-        });
+        });*/
 
-        modelBuilder.Entity<GameMove>(entity =>
+        /*modelBuilder.Entity<GameMove>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Outcome).HasConversion<int>();
