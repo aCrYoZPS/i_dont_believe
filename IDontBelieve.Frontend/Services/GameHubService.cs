@@ -1,12 +1,16 @@
-﻿using IDontBelieve.Frontend.Models;
+﻿using System.Security.Claims;
+using IDontBelieve.Core.DTOs.Frontend;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.AspNetCore.Components.Authorization;
 
 namespace IDontBelieve.Frontend.Services;
 
 public class GameHubService : IAsyncDisposable
 {
-    private readonly HubConnection? _hubConnection;
+    private readonly AuthenticationStateProvider _authenticationStateProvider;
+    
+    public readonly HubConnection? _hubConnection;
 
     public List<GameRoomDto> Rooms { get; private set; } = new();
     public GameRoomDto? CurrentRoom { get; private set; }
@@ -14,12 +18,10 @@ public class GameHubService : IAsyncDisposable
     public event Action? OnRoomsUpdated;
     public event Action? OnCurrentRoomUpdated;
 
-    // MOCK, Implement actual auth
-    public int MyUserId { get; private set; } = new Random().Next(1, 10000);
-    public string MyUsername { get; private set; } = "Player" + new Random().Next(1, 1000);
-
-    public GameHubService(NavigationManager navManager)
+    public GameHubService(NavigationManager navManager, AuthenticationStateProvider authenticationStateProvider)
     {
+        _authenticationStateProvider = authenticationStateProvider;
+        
         var serverUrl = "http://localhost:5000/hubs/gameroom";
 
         _hubConnection = new HubConnectionBuilder()
@@ -32,17 +34,21 @@ public class GameHubService : IAsyncDisposable
 
     private void RegisterHubEvents()
     {
-        _hubConnection.On<List<GameRoomDto>>("RoomsList", (rooms) =>
+        
+        _hubConnection.On<List<IDontBelieve.Core.DTOs.Frontend.GameRoomDto>>("RoomsList", (rooms) =>
         {
+            Console.WriteLine($"RoomsList");
             Rooms = rooms;
             OnRoomsUpdated?.Invoke();
         });
 
         _hubConnection.On<GameRoomDto>("RoomCreated", (room) =>
         {
-            Rooms.Add(room);
-            OnRoomsUpdated?.Invoke();
+                Console.WriteLine($"RoomCreated: {room}");
+                Rooms.Add(room);
+                OnRoomsUpdated?.Invoke();
         });
+        
 
         _hubConnection.On<GameRoomDto>("RoomUpdated", (room) =>
         {
@@ -84,40 +90,63 @@ public class GameHubService : IAsyncDisposable
             CurrentRoom = room;
             OnCurrentRoomUpdated?.Invoke();
         });
+        
+        OnRoomsUpdated += () =>
+        {
+            Console.WriteLine($"RoomsUpdated: {Rooms.Count}");
+        };
+        
+        Console.WriteLine($"Finish inti");
+        
+        _hubConnection.Closed += async (error) =>
+        {
+            Console.WriteLine($"Connection closed: {error}");
+            await Task.Delay(5000);
+            await _hubConnection.StartAsync();
+        };
+
+        _hubConnection.Reconnecting += (error) =>
+        {
+            Console.WriteLine($"Reconnecting: {error}");
+            return Task.CompletedTask;
+        };
     }
 
     public async Task ConnectAsync()
     {
         if (_hubConnection.State == HubConnectionState.Disconnected)
         {
+            Console.WriteLine("TryConnect");
             await _hubConnection.StartAsync();
-            Console.WriteLine("dvinsdvnsvnsivnsjvnsi");
-            Console.WriteLine(_hubConnection.State);
+            Console.WriteLine($"Status from service: {_hubConnection.State}");
         }
     }
 
     public async Task JoinLobbyAsync()
     {
         await ConnectAsync();
-        await _hubConnection.InvokeAsync("JoinLobby", MyUserId, MyUsername);
+        await _hubConnection.InvokeAsync("JoinLobby", await GetUserId(), await GetUsername());
     }
 
     public async Task CreateRoomAsync(string roomName, int maxPlayers)
     {
-        var dto = new CreateRoomDto { Name = roomName, MaxPlayers = maxPlayers };
-        await _hubConnection.InvokeAsync("CreateRoom", dto, MyUserId);
+        var dto = new IDontBelieve.Core.DTOs.CreateRoomDto 
+            { Name = roomName, MaxPlayers = maxPlayers };
+        
+        var id = await GetUserId();
+        await _hubConnection.InvokeAsync("CreateRoom", dto, id);
     }
 
     public async Task JoinRoomAsync(int roomId)
     {
-        await _hubConnection.InvokeAsync("JoinRoom", roomId, MyUserId, MyUsername);
+        await _hubConnection.InvokeAsync("JoinRoom", roomId, await GetUserId(), await GetUsername());
         // Explicitly ask for details to populate CurrentRoom immediately
         await _hubConnection.InvokeAsync("GetRoomDetails", roomId);
     }
 
     public async Task LeaveRoomAsync(int roomId)
     {
-        await _hubConnection.InvokeAsync("LeaveRoom", roomId, MyUserId, MyUsername);
+        await _hubConnection.InvokeAsync("LeaveRoom", roomId, await GetUserId(), await GetUsername());
         CurrentRoom = null;
     }
 
@@ -127,5 +156,19 @@ public class GameHubService : IAsyncDisposable
         {
             await _hubConnection.DisposeAsync();
         }
+    }
+
+    public async Task<int> GetUserId()
+    {
+        var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User; 
+        return int.Parse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+    }
+    
+    public async Task<string> GetUsername()
+    {
+        var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User; 
+        return user.FindFirst(ClaimTypes.Name)?.Value;
     }
 }

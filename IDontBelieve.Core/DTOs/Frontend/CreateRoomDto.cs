@@ -1,4 +1,4 @@
-﻿namespace IDontBelieve.Frontend.Models;
+﻿namespace IDontBelieve.Core.DTOs.Frontend;
 
 public class CreateRoomDto
 {

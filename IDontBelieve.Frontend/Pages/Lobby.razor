@@ -9,7 +9,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Game Lobby</h2>
         <div class="d-flex gap-2">
-            <span class="badge bg-secondary align-self-center">Logged in as: @GameService.MyUsername</span>
+            <span class="badge bg-secondary align-self-center">Logged in as: @displayName</span>
             <button class="btn btn-primary" @onclick="ShowCreateModal">Create Room</button>
         </div>
     </div>
@@ -74,6 +74,7 @@
 }
 
 @code {
+    private string displayName;
     private bool isConnected = false;
     private bool showCreateRoom = false;
     private string newRoomName = "My Game Room";
@@ -81,11 +82,12 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Console.WriteLine("yobanaya zalupa");
         GameService.OnRoomsUpdated += StateHasChanged;
-
+        
         await GameService.JoinLobbyAsync();
         isConnected = true;
+        
+        displayName = await GameService.GetUsername();
     }
 
     private void ShowCreateModal() => showCreateRoom = true;

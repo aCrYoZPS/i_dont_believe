@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.SignalR;
 using IDontBelieve.Core.Services;
 using IDontBelieve.Core.DTOs;
 using Microsoft.Extensions.Logging; 
+using IDontBelieve.Core.DTOs.Frontend;
 
 namespace IDontBelieve.Infrastructure.Hubs;
 
@@ -29,7 +30,7 @@ public class GameRoomHub : Hub
             _connectionToUser[Context.ConnectionId] = userId;
             _userToConnection[userId] = Context.ConnectionId;
             await Groups.AddToGroupAsync(Context.ConnectionId, "Lobby");
-            _logger.LogInformation("User {Username} ({UserId}) joined lobby", username, userId);
+            _logger.LogError("User {Username} ({UserId}) joined lobby", username, userId);
             
             await Clients.OthersInGroup("Lobby").SendAsync("PlayerJoinedLobby", new { 
                 UserId = userId, 
@@ -38,7 +39,12 @@ public class GameRoomHub : Hub
             });
 
             var rooms = _gameRoomService.GetAvailableRoomsAsync(new RoomFilterDto());
-            await Clients.Caller.SendAsync("RoomsList", rooms);
+            var listDto = new List<GameRoomDto>();
+            foreach (var room in rooms)
+            {
+                listDto.Add(new GameRoomDto(room));
+            }
+            await Clients.Caller.SendAsync("RoomsList", listDto);
         }
         catch (Exception ex)
         {
@@ -61,7 +67,7 @@ public class GameRoomHub : Hub
                 Timestamp = DateTime.UtcNow
             });
             
-            _logger.LogInformation("User {UserId} left lobby", userId);
+            _logger.LogError("User {UserId} left lobby", userId);
         }
         catch (Exception ex)
         {
@@ -69,21 +75,26 @@ public class GameRoomHub : Hub
         }
     }
 
-    public async Task CreateRoom(CreateRoomDto roomDto, int userId)
+    public async Task CreateRoom(IDontBelieve.Core.DTOs.CreateRoomDto roomDto, int userId)
     {
         try
         {
             var room = _gameRoomService.CreateRoomAsync(roomDto, userId);
+
+            var dto = new IDontBelieve.Core.DTOs.Frontend.GameRoomDto(room);
             
-            _logger.LogInformation("Room {RoomName} (ID: {RoomId}) created by user {UserId}", 
+            await Clients.Caller.SendAsync("RoomCreated", dto);
+            
+            var rooms = _gameRoomService.GetAvailableRoomsAsync(new RoomFilterDto());
+            var listDto = new List<IDontBelieve.Core.DTOs.Frontend.GameRoomDto>();
+            foreach (var r in rooms)
+            {
+                listDto.Add(new GameRoomDto(r));
+            }
+            await Clients.OthersInGroup("Lobby").SendAsync("RoomsList", listDto);
+            
+            _logger.LogError("Room {RoomName} (ID: {RoomId}) created by user {UserId}", 
                 room.Name, room.Id, userId);
-            
-            await Clients.Group("Lobby").SendAsync("RoomCreated", room);
-            
-            await Clients.Caller.SendAsync("RoomCreatedSuccess", new {
-                Room = room,
-                Message = "Room created successfully"
-            });
         }
         catch (Exception ex)
         {
