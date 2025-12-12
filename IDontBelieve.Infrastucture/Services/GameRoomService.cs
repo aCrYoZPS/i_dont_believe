@@ -9,11 +9,13 @@ public class GameRoomService
 : IGameRoomService
 {
     private readonly ILogger<GameRoomService> _logger;
+    private readonly IUserService _userService;
     private readonly List<GameRoom> _rooms = new();
 
-    public GameRoomService(ILogger<GameRoomService> logger)
+    public GameRoomService(ILogger<GameRoomService> logger,  IUserService userService)
     {
         _logger = logger;
+        _userService = userService;
     }
 
     public GameRoom CreateRoomAsync(CreateRoomDto dto, int userId)
@@ -119,9 +121,11 @@ public class GameRoomService
         var player = new GamePlayer
         {
             GameRoomId = room.Id,
+            GameRoom = room,
             UserId = userId,
             Position = room.Players.Count,
-            Status = PlayerStatus.Waiting
+            Status = PlayerStatus.Waiting,
+            User = _userService.GetUserByIdAsync(userId).Result,
         };
 
         room.Players.Add(player);
