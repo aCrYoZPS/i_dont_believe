@@ -1,9 +1,16 @@
-﻿<nav class="navigation-bar">
+﻿@using IDontBelieve.Frontend.Services
+@using Microsoft.AspNetCore.Components.Authorization
+<nav class="navigation-bar">
     <a class="brand" href="/">I Don't Believe</a>
-
     <div class="user-actions">
-        
-        <a class="auth-button" href="/login">Login</a>
+        <AuthorizeView>
+            <Authorized>
+                <p>Hello, @context.User.Identity?.Name</p>
+            </Authorized>
+            <NotAuthorized>
+                <a class="auth-button" href="/login">Login</a>
+            </NotAuthorized>
+        </AuthorizeView>
 
         <div class="menu-container">
             <button title="Navigation menu" class="navigation-toggler" @onclick="ToggleNavMenu">
@@ -29,6 +36,9 @@
 
 @code {
     private bool collapseNavMenu = true;
+
+    [Inject]
+    private CustomAuthStateProvider AuthStateProvider { get; set; } = default!;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : "showing";
 
