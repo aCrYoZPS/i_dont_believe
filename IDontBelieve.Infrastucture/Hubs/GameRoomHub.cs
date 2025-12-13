@@ -3,23 +3,24 @@ using IDontBelieve.Core.Services;
 using IDontBelieve.Core.DTOs;
 using Microsoft.Extensions.Logging; 
 using IDontBelieve.Core.DTOs.Frontend;
+using IDontBelieve.Infrastructure.Repositories;
 
 namespace IDontBelieve.Infrastructure.Hubs;
 
 public class GameRoomHub : Hub
 {
     private readonly IGameRoomService _gameRoomService;
-    private readonly IUserService _userService;
+    private readonly IUserRepository _userRepository;
     private readonly ILogger<GameRoomHub> _logger;
 
     private static readonly Dictionary<string, int> _connectionToUser = new();
     private static readonly Dictionary<int, string> _userToConnection = new();
     private static readonly Dictionary<int, HashSet<string>> _roomConnections = new();
 
-    public GameRoomHub(IGameRoomService gameRoomService, IUserService userService, ILogger<GameRoomHub> logger)
+    public GameRoomHub(IGameRoomService gameRoomService, IUserRepository userRepository, ILogger<GameRoomHub> logger)
     {
         _gameRoomService = gameRoomService;
-        _userService = userService;
+        _userRepository = userRepository;
         _logger = logger;
     }
 
@@ -79,7 +80,8 @@ public class GameRoomHub : Hub
     {
         try
         {
-            var room = _gameRoomService.CreateRoomAsync(roomDto, userId);
+            var user = await _userRepository.GetByIdAsync(userId);
+            var room = _gameRoomService.CreateRoomAsync(roomDto, user);
 
             var dto = new IDontBelieve.Core.DTOs.Frontend.GameRoomDto(room);
             
@@ -93,8 +95,9 @@ public class GameRoomHub : Hub
             }
             await Clients.OthersInGroup("Lobby").SendAsync("RoomsList", listDto);
             
-            _logger.LogError("Room {RoomName} (ID: {RoomId}) created by user {UserId}", 
-                room.Name, room.Id, userId);
+            _logger.LogError("Room {RoomName} (ID: {RoomId}) created by user {UserId}, all rooms: {sas}, free: {sas2}", 
+                room.Name, room.Id, userId, _gameRoomService.GetRooms().Count, listDto.Count);
+            _logger.LogWarning($"Object IDs: Hub : {this.GetHashCode()}, RoomServ: {_gameRoomService.GetHashCode()}");
         }
         catch (Exception ex)
         {
@@ -110,7 +113,8 @@ public class GameRoomHub : Hub
     {
         try
         {
-            var result = _gameRoomService.JoinRoomAsync(roomId, userId);
+            var user = await _userRepository.GetByIdAsync(userId);
+            var result = _gameRoomService.JoinRoomAsync(roomId, user);
             
             if (!result.Success)
             {
@@ -136,16 +140,22 @@ public class GameRoomHub : Hub
                 RoomId = roomId,
                 UserId = userId, 
                 Username = username,
-                Room = result.Room,
+                RoomDto = new GameRoomDto(result.Room),
                 Timestamp = DateTime.UtcNow
             });
             
-            await Clients.Group("Lobby").SendAsync("RoomUpdated", result.Room);
+            _logger.LogError("1");
+            
+            await Clients.Group("Lobby").SendAsync("RoomUpdated", new GameRoomDto(result.Room));
+            
+            _logger.LogError("2");
             
             await Clients.Caller.SendAsync("JoinRoomSuccess", new {
-                Room = result.Room,
+                RoomDto = new GameRoomDto(result.Room),
                 Message = "Joined room successfully"
             });
+            
+            _logger.LogError("3");
         }
         catch (Exception ex)
         {
@@ -275,7 +285,7 @@ public class GameRoomHub : Hub
             var room = _gameRoomService.GetRoomWithPlayersAsync(roomId);
             if (room != null)
             {
-                await Clients.Caller.SendAsync("RoomDetails", room);
+                await Clients.Caller.SendAsync("RoomDetails", new GameRoomDto(room));
             }
             else
             {

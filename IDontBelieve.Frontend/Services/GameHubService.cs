@@ -14,6 +14,7 @@ public class GameHubService : IAsyncDisposable
 
     public List<GameRoomDto> Rooms { get; private set; } = new();
     public GameRoomDto? CurrentRoom { get; private set; }
+    public int CreatedRoomId { get; private set; }
 
     public event Action? OnRoomsUpdated;
     public event Action? OnCurrentRoomUpdated;
@@ -45,8 +46,9 @@ public class GameHubService : IAsyncDisposable
         _hubConnection.On<GameRoomDto>("RoomCreated", (room) =>
         {
                 Console.WriteLine($"RoomCreated: {room}");
-                Rooms.Add(room);
-                OnRoomsUpdated?.Invoke();
+                CreatedRoomId =  room.Id;
+                // Rooms.Add(room);
+                // OnRoomsUpdated?.Invoke();
         });
         
 

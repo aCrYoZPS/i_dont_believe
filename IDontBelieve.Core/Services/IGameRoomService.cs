@@ -5,13 +5,15 @@ namespace IDontBelieve.Core.Services;
 
 public interface IGameRoomService
 {
-    GameRoom CreateRoomAsync(CreateRoomDto dto, int userId);
+    GameRoom CreateRoomAsync(CreateRoomDto dto, User user);
     List<GameRoom> GetAvailableRoomsAsync(RoomFilterDto filter);
     GameRoom? GetRoomByIdAsync(int roomId);
     GameRoom? GetRoomWithPlayersAsync(int roomId);
-    JoinRoomResultDto JoinRoomAsync(int roomId, int userId);
+    JoinRoomResultDto JoinRoomAsync(int roomId, User user);
     bool LeaveRoomAsync(int roomId, int userId);
     bool CanStartGameAsync(int roomId);
     void UpdateRoomStatusAsync(int roomId, GameRoomStatus status);
     List<User> GetRoomPlayersAsync(int roomId);
+
+    public List<GameRoom> GetRooms();
 }
