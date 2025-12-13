@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using IDontBelieve.Core.Models;
 using IDontBelieve.Core.Services;
 using IDontBelieve.Core.DTOs;
+using IDontBelieve.Infrastructure.Repositories;
 
 namespace IDontBelieve.Infrastructure.Services;
 
@@ -9,16 +10,16 @@ public class GameRoomService
 : IGameRoomService
 {
     private readonly ILogger<GameRoomService> _logger;
-    private readonly IUserService _userService;
+    //private readonly IUserRepository _userRepository;
     private readonly List<GameRoom> _rooms = new();
 
-    public GameRoomService(ILogger<GameRoomService> logger,  IUserService userService)
+    public GameRoomService(ILogger<GameRoomService> logger)//, IUserRepository userRepository)
     {
         _logger = logger;
-        _userService = userService;
+        //_userRepository = userRepository;
     }
 
-    public GameRoom CreateRoomAsync(CreateRoomDto dto, int userId)
+    public GameRoom CreateRoomAsync(CreateRoomDto dto, User user)
     {
         var room = new GameRoom
         {
@@ -28,18 +29,20 @@ public class GameRoomService
             ShowCardCount = dto.ShowCardCount,
             Status = GameRoomStatus.Waiting,
             CreatedAt = DateTime.UtcNow,
-            CreatedByUserId = userId
+            CreatedByUserId = user.Id
         };
         
         _rooms.Add(room);
         
-        JoinRoomAsync(room.Id, userId);
+        JoinRoomAsync(room.Id, user);
 
-        _logger.LogInformation("Created room {RoomName} (ID: {RoomId}) by user {UserId}", 
-            dto.Name, room.Id, userId);
+        _logger.LogError("Created room {RoomName} (ID: {RoomId}) by user {UserId}", 
+            dto.Name, room.Id, user.Id);
         
         return room;
     }
+
+    public List<GameRoom> GetRooms() => _rooms;
 
     public List<GameRoom> GetAvailableRoomsAsync(RoomFilterDto filter)
     {
@@ -83,8 +86,8 @@ public class GameRoomService
 
     public GameRoom? GetRoomWithPlayersAsync(int roomId) => 
         GetRoomByIdAsync(roomId);
-    
-    public JoinRoomResultDto JoinRoomAsync(int roomId, int userId)
+
+    public JoinRoomResultDto JoinRoomAsync(int roomId, User user)
     {
         var room = _rooms.FirstOrDefault(r => r.Id == roomId);
 
@@ -97,11 +100,11 @@ public class GameRoomService
             };
         }
         
-        var result = JoinRoomInternal(room, userId);
+        var result = JoinRoomInternal(room, user);
         return result;
     }
     
-    private JoinRoomResultDto JoinRoomInternal(GameRoom room, int userId)
+    private JoinRoomResultDto JoinRoomInternal(GameRoom room, User user)
     {
         if (room.Status != GameRoomStatus.Waiting)
         {
@@ -113,7 +116,7 @@ public class GameRoomService
             return new JoinRoomResultDto { Success = false, Message = "Room is full" };
         }
 
-        if (room.Players.Any(p => p.UserId == userId))
+        if (room.Players.Any(p => p.UserId == user.Id))
         {
             return new JoinRoomResultDto { Success = true, Message = "You are already in the room", Room = room };
         }
@@ -122,15 +125,16 @@ public class GameRoomService
         {
             GameRoomId = room.Id,
             GameRoom = room,
-            UserId = userId,
+            UserId = user.Id,
             Position = room.Players.Count,
             Status = PlayerStatus.Waiting,
-            User = _userService.GetUserByIdAsync(userId).Result,
+            User = user
+            //User = _userService.GetUserByIdAsync(userId).Result,
         };
 
         room.Players.Add(player);
 
-        _logger.LogInformation("User {UserId} joined room {RoomId}", userId, room.Id);
+        _logger.LogInformation("User {UserId} joined room {RoomId}", user.Id, room.Id);
         
         return new JoinRoomResultDto
         {
@@ -153,6 +157,7 @@ public class GameRoomService
         if (room.Players.Count == 0) 
         {
             _rooms.Remove(room);
+            _logger.LogError("Room {RoomId} deleted");
         }
 
         _logger.LogInformation("User {UserId} left room {RoomId}", userId, roomId);

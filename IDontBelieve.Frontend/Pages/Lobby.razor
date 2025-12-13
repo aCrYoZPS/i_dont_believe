@@ -96,6 +96,7 @@
     {
         await GameService.CreateRoomAsync(newRoomName, newRoomMax);
         showCreateRoom = false;
+        Navigation.NavigateTo($"/room/{GameService.CreatedRoomId}");
     }
 
     private async Task JoinRoom(int roomId)
