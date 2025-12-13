@@ -10,5 +10,7 @@ public class CreateRoomDto
 
     [Range(3, 6)] public int MaxPlayers { get; set; } = 4;
     public DeckType DeckType { get; set; } = DeckType.Cards36;
+
+    public int HostId { get; set; } = -1;
     public bool ShowCardCount { get; set; } = true;
 }

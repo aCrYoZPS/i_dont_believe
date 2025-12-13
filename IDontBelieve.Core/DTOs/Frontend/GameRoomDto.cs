@@ -13,15 +13,18 @@ public class GameRoomDto
     public List<PlayerDto> Players { get; set; } = new();
     public string Status { get; set; } = "Waiting"; // Enum string representation
 
+    public int HostId { get; set; } = -1; 
+
     public GameRoomDto(){}
 
     [JsonConstructor]
-    public GameRoomDto(int id, string name, int maxPlayers,  List<PlayerDto> players, string status)
+    public GameRoomDto(int id, string name, int maxPlayers, int hostId,  List<PlayerDto> players, string status)
     {
         Id = id;
         Name = name;
         MaxPlayers = maxPlayers;
         Players = players;
+        HostId = hostId;
         Status = status;
     }
 
@@ -29,6 +32,7 @@ public class GameRoomDto
     {
         Id = room.Id;
         Name = room.Name;
+        HostId = room.CreatedByUserId;
         MaxPlayers = room.MaxPlayers;
         
         Players = new List<PlayerDto>();
