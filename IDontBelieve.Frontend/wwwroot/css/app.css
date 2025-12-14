@@ -344,6 +344,10 @@ code {
     padding-bottom: 5px;
 }
 
+div.text-center.p-5.bg-light.rounded {
+    color: blueviolet;
+}
+
 .btn-game {
     width: 100%;
     border: none;
@@ -411,3 +415,183 @@ code {
     filter: grayscale(0.5);
     pointer-events: none; 
 }
+
+.lb-state-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 60px 20px;
+    text-align: center;
+    margin: 20px 0;
+}
+
+.lb-state-box h3 { margin-bottom: 10px; color: white; }
+.lb-state-box p { opacity: 0.6; }
+
+.error-icon, .empty-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.leaderboard-container {
+    max-width: 850px;
+    margin: 2rem auto;
+    padding: 20px;
+    background: rgba(15, 15, 20, 0.7);
+    border-radius: 30px;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.lb-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.lb-card {
+    position: relative;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 18px;
+    padding: 12px 24px;
+    display: grid;
+    grid-template-columns: 80px 1fr 220px;
+    align-items: center;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    overflow: hidden;
+}
+
+.lb-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    transform: scale(1.02) translateX(10px);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: -10px 0 30px rgba(0, 210, 255, 0.1);
+}
+
+.lb-card.podium {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.lb-card.rank-1 {
+    border-left: 5px solid #ffd700;
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.02) 100%);
+}
+.lb-card.rank-1 .name { color: #ffd700; text-shadow: 0 0 15px rgba(255, 215, 0, 0.4); }
+
+.lb-card.rank-2 {
+    border-left: 5px solid #e2e2e2;
+    background: linear-gradient(90deg, rgba(226, 226, 226, 0.08) 0%, transparent 100%);
+}
+
+.lb-card.rank-3 {
+    border-left: 5px solid #cd7f32;
+    background: linear-gradient(90deg, rgba(205, 127, 50, 0.08) 0%, transparent 100%);
+}
+
+.rank-badge {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.rank-badge .medal {
+    font-size: 2.2rem;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2));
+}
+
+.user-info .name {
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.mini-stats {
+    display: flex;
+    gap: 20px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.mini-stats b {
+    color: rgba(255, 255, 255, 0.9);
+    margin-left: 4px;
+}
+
+.winrate-section {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.progress-wrapper {
+    position: relative;
+    flex: 1;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.progress-wrapper .bar {
+    height: 100%;
+    border-radius: 20px;
+    position: relative;
+    box-shadow: 0 0 15px; 
+}
+
+@keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.percent {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    font-size: 1rem;
+    color: #00ff88;
+    min-width: 60px;
+    text-align: right;
+}
+
+.lb-footer {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 30px;
+    padding-top: 25px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-box {
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 15px;
+    transition: background 0.3s;
+}
+
+.stat-box:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.stat-box .val {
+    font-size: 1.8rem;
+    font-weight: 800;
+    display: block;
+}
+
+.stat-box .lab {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 2px;
+}
+
+.text-gold { color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.2); }
+.text-info { color: #00d2ff; }
+.text-primary { color: #a855f7; }
