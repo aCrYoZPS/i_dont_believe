@@ -101,12 +101,10 @@
 
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h5>@GameService.CurrentRoom.Name</h5>
-                        <button class="btn btn-danger btn-sm" @onclick="LeaveRoom">
-                            Leave
-                        </button>
+                        
                     </div>
 
-                    <p class="text-muted mb-2">
+                    <p class="mb-2">
                         Status: <strong>@GameService.CurrentRoom.Status</strong>
                     </p>
 
@@ -117,14 +115,18 @@
                             @GameService.CurrentRoom.MaxPlayers
                         </strong>
                     </p>
+                                        
+                    <button class="btn btn-danger btn-sm" @onclick="LeaveRoom">
+                        Leave
+                    </button>
 
-                    <hr />
+                    <hr/>
 
                     <h6>Players</h6>
                     <ul class="list-group mb-3">
                         @foreach (var player in GameService.CurrentRoom.Players)
                         {
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <li class="list-group-item d-flex justify-content-between align-items-center m-1">
                                 <span>
                                     <i class="bi bi-person-circle"></i>
                                     @player.Username

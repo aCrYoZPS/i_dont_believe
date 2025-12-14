@@ -7,172 +7,127 @@
 
 <PageTitle>Leaderboard - IDontBelieve</PageTitle>
 
-<div class="leaderboard-page">
-    <!-- Header -->
-    <div class="leaderboard-header">
-        <div class="header-content">
-            <h1 class="title">
-                <span class="trophy">🏆</span>
-                Player Leaderboard
-            </h1>
-            <p class="subtitle">Top players by rating - updates in real-time</p>
+<div class="leaderboard-container">
+    <header class="lb-header">
+        <div class="lb-info">
+            <h1><span class="emoji">🏆</span> Leaderboard</h1>
+            <p>Top players by rating — updates in real-time</p>
+            @if (leaderboard != null)
+            {
+                <div class="last-update">
+                    Updated: <strong>@leaderboard.UpdatedAt.ToLocalTime().ToString("HH:mm:ss")</strong>
+                    @if (isConnected) { <span class="live-tag">LIVE</span> }
+                </div>
+            }
         </div>
         
-        <div class="header-controls">
-            <div class="connection-status" title="SignalR Connection">
-                <div class="status-indicator @(isConnected ? "connected" : "disconnected")"></div>
-                <span>@(isConnected ? "Live" : "Offline")</span>
+        <div class="lb-controls">
+            <div class="status @(isConnected ? "online" : "offline")">
+                <i></i> @(isConnected ? "Connected" : "Disconnected")
             </div>
-            
-            <div class="auto-refresh-toggle">
-                <label class="toggle-label">
-                    <input type="checkbox" @bind="autoRefresh" @oninput="OnAutoRefreshToggled" />
-                    <span class="toggle-slider"></span>
-                    Auto-refresh
-                </label>
-            </div>
+            <label class="toggle">
+                <input type="checkbox" @bind="autoRefresh" @oninput="OnAutoRefreshToggled"/>
+                <span class="slider"></span> Auto-refresh
+            </label>
         </div>
-    </div>
+    </header>
 
-    <!-- Loading State -->
     @if (isLoading && leaderboard == null)
     {
-        <div class="loading-state">
+        <div class="lb-state-box loading">
             <div class="spinner"></div>
             <p>Loading leaderboard...</p>
         </div>
     }
 
-    <!-- Error State -->
     @if (!isLoading && leaderboard == null && !isConnected)
     {
-        <div class="error-state">
+        <div class="lb-state-box error">
             <div class="error-icon">⚠️</div>
             <h3>Connection Lost</h3>
             <p>Unable to connect to the leaderboard service.</p>
-            <button class="retry-btn" @onclick="Reconnect">Reconnect</button>
+            <button @onclick="Reconnect">Reconnect</button>
         </div>
     }
 
-    <!-- Leaderboard Content -->
     @if (leaderboard != null)
     {
-        <div class="leaderboard-content">
-            <!-- Last Updated -->
-            <div class="last-updated">
-                Last updated: <strong>@leaderboard.UpdatedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm:ss")</strong>
-                @if (isConnected)
-                {
-                    <span class="live-badge">LIVE</span>
-                }
-            </div>
-
-            <!-- Leaderboard List -->
-            <div class="leaderboard-list">
+        <main class="lb-content">
+            <div class="lb-list">
+                <button @onclick="RefreshLeaderboard">Refresh Leaderboard</button>
+                    <div class="controls-section">
+                        <label class="count-selector">
+                            Show:
+                            <select @bind="itemsCount" @oninput="OnCountChanged">
+                                <option value="10">Top 10</option>
+                                <option value="25">Top 25</option>
+                                <option value="50">Top 50</option>
+                                <option value="100">Top 100</option>
+                            </select>
+                        </label>
+                    </div>
                 @foreach (var user in leaderboard.Users)
                 {
-                    <div class="leaderboard-item @GetRankClass(user.Rank) @(user.Rank <= 3 ? "podium" : "")">
-                        <!-- Rank Number -->
-                        <div class="rank-section">
-                            <div class="rank-number">#@user.Rank</div>
+                    <div class="lb-card @GetRankClass(user.Rank) @(user.Rank <= 3 ? "podium" : "")">
+                        <div class="rank-badge">
                             @if (user.Rank <= 3)
+                                {
+                                    <div class="medal">
+                                        @(user.Rank == 1 ? "🥇" : user.Rank == 2 ? "🥈" : "🥉")
+                                    </div>
+                                }
+                            else
                             {
-                                <div class="podium-icon">
-                                    @(user.Rank == 1 ? "🥇" : user.Rank == 2 ? "🥈" : "🥉")
-                                </div>
+                                <span class="number">#@user.Rank</span>
                             }
                         </div>
 
-                        <!-- User Info -->
-                        <div class="user-section">
-                            <div class="username">@user.UserName</div>
-                            <div class="user-stats">
-                                <span class="stat rating">
-                                    <span class="stat-label">Rating:</span>
-                                    <span class="stat-value">@user.Rating</span>
-                                </span>
-                                <span class="stat win-rate">
-                                    <span class="stat-label">Win Rate:</span>
-                                    <span class="stat-value">@(user.WinRate.ToString("P1"))</span>
-                                </span>
-                                <span class="stat games">
-                                    <span class="stat-label">Games:</span>
-                                    <span class="stat-value">@user.GamesPlayed</span>
-                                </span>
-                                <span class="stat wins">
-                                    <span class="stat-label">Wins:</span>
-                                    <span class="stat-value">@user.GamesWon</span>
-                                </span>
+                        <div class="user-info">
+                            <span class="name">@user.UserName</span>
+                            <div class="mini-stats">
+                                <span>Rating: <b>@user.Rating</b></span>
+                                <span>Games: <b>@user.GamesPlayed</b></span>
                             </div>
                         </div>
 
-                        <!-- Progress Bar for Win Rate -->
-                        <div class="progress-section">
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: @(user.WinRate * 100)%; 
-                                    background: @GetWinRateColor(user.WinRate);"></div>
+                        <div class="winrate-section">
+                            <div class="progress-wrapper">
+                                <div class="bar" style="width: @(user.WinRate * 100)%; background: @GetWinRateColor(user.WinRate)"></div>
                             </div>
-                            <div class="progress-text">@(user.WinRate.ToString("P1"))</div>
+                            <span class="percent">@(user.WinRate.ToString("P1"))</span>
                         </div>
                     </div>
                 }
             </div>
 
-            <!-- Empty State -->
             @if (!leaderboard.Users.Any())
             {
-                <div class="empty-state">
+                <div class="lb-state-box empty">
                     <div class="empty-icon">📊</div>
                     <h3>No Players Yet</h3>
                     <p>Be the first to join the leaderboard!</p>
                 </div>
             }
+        </main>
 
-            <!-- Controls -->
-            <div class="controls-section">
-                <div class="controls-left">
-                    <label class="count-selector">
-                        Show:
-                        <select @bind="itemsCount" @oninput="OnCountChanged">
-                            <option value="10">Top 10</option>
-                            <option value="25">Top 25</option>
-                            <option value="50">Top 50</option>
-                            <option value="100">Top 100</option>
-                        </select>
-                    </label>
-                </div>
-                
-                <div class="controls-right">
-                    <button class="refresh-btn" @onclick="RefreshLeaderboard" disabled="@isLoading">
-                        <span class="btn-icon">🔄</span>
-                        @(isLoading ? "Refreshing..." : "Refresh Now")
-                    </button>
-                </div>
+        <footer class="lb-footer">
+            <div class="stat-box">
+                <span class="val">@leaderboard.Users.Count</span>
+                <span class="lab">Players</span>
             </div>
-        </div>
-    }
-
-    <!-- Footer Stats -->
-    @if (leaderboard != null && leaderboard.Users.Any())
-    {
-        <div class="footer-stats">
-            <div class="stat-card">
-                <div class="stat-value">@leaderboard.Users.Count</div>
-                <div class="stat-label">Players</div>
+            <div class="stat-box">
+                <span class="val text-gold">@leaderboard.Users.Max(u => u.Rating)</span>
+                <span class="lab">Top Rating</span>
             </div>
-            <div class="stat-card">
-                <div class="stat-value">@leaderboard.Users.Max(u => u.Rating)</div>
-                <div class="stat-label">Top Rating</div>
+            <div class="stat-box">
+                <span class="val text-info">@(leaderboard.Users.Average(u => u.WinRate).ToString("P0"))</span>
+                <span class="lab">Avg Win Rate</span>
             </div>
-            <div class="stat-card">
-                <div class="stat-value">@(leaderboard.Users.Average(u => u.WinRate).ToString("P1"))</div>
-                <div class="stat-label">Avg Win Rate</div>
+            <div class="stat-box">
+                <span class="val text-primary">@leaderboard.Users.Sum(u => u.GamesPlayed)</span>
+                <span class="lab">Total Games</span>
             </div>
-            <div class="stat-card">
-                <div class="stat-value">@leaderboard.Users.Sum(u => u.GamesPlayed)</div>
-                <div class="stat-label">Total Games</div>
-            </div>
-        </div>
+        </footer>
     }
 </div>
 
@@ -247,7 +202,7 @@
     {
         leaderboard = update;
         StateHasChanged();
-        
+
         // Show notification for new updates
         if (autoRefresh)
         {
@@ -286,10 +241,7 @@
             {
                 if (isConnected && autoRefresh)
                 {
-                    await InvokeAsync(async () =>
-                    {
-                        await LoadLeaderboard();
-                    });
+                    await InvokeAsync(async () => { await LoadLeaderboard(); });
                 }
             }, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
         }
@@ -319,7 +271,7 @@
             >= 0.7 => "#10b981", // Green
             >= 0.5 => "#3b82f6", // Blue
             >= 0.3 => "#f59e0b", // Yellow
-            _ => "#ef4444"       // Red
+            _ => "#ef4444" // Red
         };
     }
 
@@ -329,4 +281,5 @@
         StopAutoRefresh();
         await LeaderboardService.DisconnectAsync();
     }
+
 }
