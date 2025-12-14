@@ -35,7 +35,6 @@ public class GameHubService : IAsyncDisposable
 
     private void RegisterHubEvents()
     {
-        
         _hubConnection.On<List<IDontBelieve.Core.DTOs.Frontend.GameRoomDto>>("RoomsList", (rooms) =>
         {
             Console.WriteLine($"RoomsList");

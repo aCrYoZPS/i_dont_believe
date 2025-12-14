@@ -11,6 +11,7 @@ public class GameRoomDto
     [JsonIgnore]
     public int CurrentPlayerCount => Players?.Count ?? 0;
     public List<PlayerDto> Players { get; set; } = new();
+    public int CurrentPlayerId { get; set; }
     public string Status { get; set; } = "Waiting"; // Enum string representation
 
     public int HostId { get; set; } = -1; 
@@ -18,7 +19,7 @@ public class GameRoomDto
     public GameRoomDto(){}
 
     [JsonConstructor]
-    public GameRoomDto(int id, string name, int maxPlayers, int hostId,  List<PlayerDto> players, string status)
+    public GameRoomDto(int id, string name, int maxPlayers, int hostId,  List<PlayerDto> players, string status, int currentPlayerId)
     {
         Id = id;
         Name = name;
@@ -26,6 +27,7 @@ public class GameRoomDto
         Players = players;
         HostId = hostId;
         Status = status;
+        CurrentPlayerId = currentPlayerId;
     }
 
     public GameRoomDto(GameRoom room)
