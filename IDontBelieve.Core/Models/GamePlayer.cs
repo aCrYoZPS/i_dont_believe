@@ -2,7 +2,6 @@ namespace IDontBelieve.Core.Models;
 
 public class GamePlayer
 {
-    public int Id { get; set; }
     public int GameRoomId { get; set; }
     public int UserId { get; set; }
     public int Position { get; set; }
