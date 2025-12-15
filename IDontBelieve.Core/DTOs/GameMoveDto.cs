@@ -6,7 +6,7 @@ public class GameMoveDto
 {
     public List<Card> Cards { get; set; } = new();
     public CardRank ClaimedRank { get; set; }
-    public int TargetPlayerId { get; set; }
+    public int? TargetPlayerId { get; set; }
 }
 
 public class GameMoveResultDto

@@ -1,16 +1,21 @@
 ﻿@page "/room/{RoomId:int}"
 @inject GameHubService GameService
+@inject GameService RoomService
 @inject NavigationManager Navigation
 @using IDontBelieve.Frontend.Services
 @implements IDisposable
+@using IDontBelieve.Core.DTOs
+@using IDontBelieve.Core.Models
 
 <div class="container-fluid mt-4">
-    @if (GameService.CurrentRoom == null)
+    @if (GameService.CurrentRoom == null || RoomService.CurrentState == null)
     {
-        <p>Loading Room Details...</p>
+        <p>Loading Room / Game...</p>
     }
     else
     {
+        var game = RoomService.CurrentState;
+
         <div class="row">
 
             <!-- LEFT: GAME FIELD -->
@@ -18,7 +23,7 @@
                 <div class="border rounded p-3 h-100">
                     <h4 class="text-center mb-3">Game Field</h4>
 
-                    @if (GameService.CurrentRoom.Status != "Waiting")
+                    @if (game.Phase != GamePhase.Playing)
                     {
                         <div class="text-center text-muted">
                             Waiting for game start...
@@ -27,69 +32,86 @@
                     else
                     {
                         <div class="table-wrapper">
+
+                            <!-- OPPONENTS -->
                             <div class="opponents-list">
-                                @{
-                                    var players = GameService.CurrentRoom.Players;
-                                    var otherPlayers = players.Where(p => p.UserId != userId).ToList();
-                                    var currentPlayer = players.FirstOrDefault(p => p.UserId == userId);
-                                    var otherCount = otherPlayers.Count;
-                                }
-                                @foreach (var player in otherPlayers)
+                                @foreach (var p in game.Players.Where(p => p.UserId != userId))
                                 {
-                                    var isTurning = player.UserId == 6; // GameService.CurrentRoom.CurrentPlayerId;
-                                    <div class="opponent-card @(isTurning ? "active-turn" : "")">
-                                        @if (isTurning)
+                                    var isTurn = p.UserId == game.CurrentPlayerId;
+
+                                    <div class="opponent-card @(isTurn ? "active-turn" : "")">
+                                        @if (isTurn)
                                         {
                                             <div class="turn-label">THINKING...</div>
                                         }
-                                        <div class="opponent-name">@player.Username</div>
+
+                                        <div class="opponent-name">@p.UserName</div>
+
                                         <div class="opponent-cards-mini">
-                                            @for(int c = 0; c < 5; c++) 
+                                            @for (int i = 0; i < p.CardCount; i++)
                                             {
                                                 <span class="mini-card">🂠</span>
                                             }
-                                            <span class="count-badge">@player.Cards.Count</span>
+                                            <span class="count-badge">@p.CardCount</span>
                                         </div>
                                     </div>
                                 }
                             </div>
-            
+
+                            <!-- FIELD -->
                             <div class="game-field">
                                 <div class="field-label">Game Field</div>
-                                <div class="played-cards">
+                                <div class="played-cards"></div>
+                            </div>
+
+                            <!-- PLAYER AREA -->
+                            @{
+                                var me = game.Players.First(p => p.UserId == userId);
+                                var myTurn = game.CurrentPlayerId == userId;
+                            }
+
+                            <div class="player-interface @(myTurn ? "my-turn-active" : "")">
+                                @if (myTurn)
+                                {
+                                    <div class="turn-label main-label">YOUR TURN</div>
+                                }
+
+                                <div class="current-player-area">
+                                    <div class="player-badge">You: @me.UserName</div>
+
+                                    <div class="my-cards-flex">
+                                        @for (int i = 0; i < me.Hand!.Count; i++)
+                                        {
+                                            var idx = i;
+                                            <div class="card-ui @(selectedCard == idx ? "selected" : "")"
+                                                 @onclick="() => SelectCard(idx)">
+                                                🂡
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="controls-column">
+                                    <button class="btn-game move"
+                                            disabled="@(selectedCard == -1 || !myTurn)"
+                                            @onclick="HandleMove">
+                                        Make a move
+                                    </button>
+
+                                    <button class="btn-game believe"
+                                            disabled="@(myTurn)"
+                                            @onclick="HandleBelieve">
+                                        I believe
+                                    </button>
+
+                                    <button class="btn-game doubt"
+                                            disabled="@(myTurn)"
+                                            @onclick="HandleDoubt">
+                                        I don't believe
+                                    </button>
                                 </div>
                             </div>
-            
-                            @if (currentPlayer != null)
-                            {
-                                var myTurn = currentPlayer.UserId == 6;// GameService.CurrentRoom.CurrentPlayerId;
-                                <div class="player-interface @(myTurn ? "my-turn-active" : "")">
-                                    @if (myTurn)
-                                    {
-                                        <div class="turn-label main-label">YOUR TURN</div>
-                                    }
-                                    <div class="current-player-area">
-                                        <div class="player-badge">You: @currentPlayer.Username</div>
-                                        <div class="my-cards-flex">
-                                            @for (int i = 0; i < 6; i++)
-                                            {
-                                                var localIndex = i;
-                                                <div class="card-ui @(selectedOverlapIndex == localIndex ? "selected" : "")" 
-                                                     @onclick="() => SelectCard(localIndex)">
-                                                    🂡
-                                                </div>
-                                            }
-                                        </div>
-                                    </div>
-                                    <div class="controls-column">
-                                        <button class="btn-game move" @onclick="HandleMove" disabled="@(selectedOverlapIndex == -1)">
-                                            Make a move
-                                        </button>
-                                        <button class="btn-game believe" @onclick="HandleBelieve">I believe</button>
-                                        <button class="btn-game doubt" @onclick="HandleDoubt">I don't believe</button>
-                                    </div>
-                                </div>
-                            }
+
                         </div>
                     }
                 </div>
@@ -99,14 +121,9 @@
             <div class="col-md-4">
                 <div class="border rounded p-3 h-100 d-flex flex-column">
 
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h5>@GameService.CurrentRoom.Name</h5>
-                        
-                    </div>
+                    <h5>@GameService.CurrentRoom.Name</h5>
 
-                    <p class="mb-2">
-                        Status: <strong>@GameService.CurrentRoom.Status</strong>
-                    </p>
+                    <p>Status: <strong>@GameService.CurrentRoom.Status</strong></p>
 
                     <p>
                         Players:
@@ -115,26 +132,22 @@
                             @GameService.CurrentRoom.MaxPlayers
                         </strong>
                     </p>
-                                        
+
                     <button class="btn btn-danger btn-sm" @onclick="LeaveRoom">
                         Leave
                     </button>
 
-                    <hr/>
+                    <hr />
 
                     <h6>Players</h6>
                     <ul class="list-group mb-3">
-                        @foreach (var player in GameService.CurrentRoom.Players)
+                        @foreach (var p in GameService.CurrentRoom.Players)
                         {
-                            <li class="list-group-item d-flex justify-content-between align-items-center m-1">
-                                <span>
-                                    <i class="bi bi-person-circle"></i>
-                                    @player.Username
-                                </span>
-
-                                @if (player.IsHost)
+                            <li class="list-group-item d-flex justify-content-between">
+                                @p.Username
+                                @if (p.IsHost)
                                 {
-                                    <span class="badge bg-warning text-dark">Host</span>
+                                    <span class="badge bg-warning">Host</span>
                                 }
                             </li>
                         }
@@ -144,18 +157,11 @@
                         @if (GameService.CurrentRoom.Status == "Waiting"
                              && GameService.CurrentRoom.Players.Any(p => p.UserId == userId && p.IsHost))
                         {
-                            <button class="btn btn-success w-100">
+                            <button class="btn btn-success w-100" @onclick="StartGame">
                                 Start Game
                             </button>
                         }
-                        else if (GameService.CurrentRoom.Status != "Waiting")
-                        {
-                            <div class="alert alert-success text-center mb-0">
-                                Game in Progress
-                            </div>
-                        }
                     </div>
-
                 </div>
             </div>
 
@@ -165,19 +171,27 @@
 
 @code {
 
-    private int userId;
-    private int selectedOverlapIndex = -1;
-
     [Parameter] public int RoomId { get; set; }
+
+    private int userId;
+    private int selectedCard = -1;
 
     protected override async Task OnInitializedAsync()
     {
         GameService.OnCurrentRoomUpdated += StateHasChanged;
+        RoomService.OnGameStateUpdated += StateHasChanged;
 
         await GameService.ConnectAsync();
         await GameService.JoinRoomAsync(RoomId);
 
         userId = await GameService.GetUserId();
+
+        await RoomService.LoadGameStateAsync(RoomId);
+    }
+
+    private async Task StartGame()
+    {
+        await RoomService.StartGameAsync(RoomId);
     }
 
     private async Task LeaveRoom()
@@ -186,35 +200,43 @@
         Navigation.NavigateTo("/rooms");
     }
 
+    private void SelectCard(int index)
+    {
+        selectedCard = selectedCard == index ? -1 : index;
+    }
+
+    private async Task HandleMove()
+    {
+        if (selectedCard == -1) return;
+
+        var card = RoomService.CurrentState!
+            .Players.First(p => p.UserId == userId)
+            .Hand![selectedCard];
+
+        var move = new GameMoveDto
+        {
+            Cards = new() { card },
+            ClaimedRank = card.Rank,
+            TargetPlayerId = null
+        };
+
+        await RoomService.MakeMoveAsync(RoomId, userId, move);
+        selectedCard = -1;
+    }
+
+    private async Task HandleBelieve()
+    {
+        await RoomService.BelieveOrNotAsync(RoomId, userId, true);
+    }
+
+    private async Task HandleDoubt()
+    {
+        await RoomService.BelieveOrNotAsync(RoomId, userId, false);
+    }
+
     public void Dispose()
     {
         GameService.OnCurrentRoomUpdated -= StateHasChanged;
-    }
-
-    private void SelectCard(int index)
-    {
-        if (selectedOverlapIndex == index)
-        {
-            selectedOverlapIndex = -1;
-        }
-        else
-        {
-            selectedOverlapIndex = index;
-        }
-    }
-
-    private void HandleMove()
-    {
-        if (selectedOverlapIndex == -1) return;
-    }
-
-    private void HandleBelieve()
-    {
-        
-    }
-
-    private void HandleDoubt()
-    {
-        
+        RoomService.OnGameStateUpdated -= StateHasChanged;
     }
 }
