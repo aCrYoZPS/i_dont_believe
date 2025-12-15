@@ -6,7 +6,7 @@ public class GameMove
     public int GameStateId { get; set; }
     public int MoveNumber { get; set; }
     public int PlayerId { get; set; }
-    public int TargetPlayerId { get; set; }
+    public int? TargetPlayerId { get; set; }
     public string CardsPlayedJson { get; set; } = "[]";
     public MoveOutcome Outcome { get; set; }
     public DateTime CreatedAt { get; set; }
