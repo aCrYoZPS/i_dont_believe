@@ -40,7 +40,8 @@ public class GameRoomDto
         Players = new List<PlayerDto>();
         foreach (var player in room.Players)
         {
-            Players.Add(new PlayerDto(player.User));
+            var isHost = player.UserId == room.CreatedByUserId;
+            Players.Add(new PlayerDto(player.User, isHost));
         }
 
         Status = room.Status.ToString();

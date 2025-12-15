@@ -141,7 +141,7 @@ public class GameHubService : IAsyncDisposable
     public async Task JoinRoomAsync(int roomId)
     {
         await _hubConnection.InvokeAsync("JoinRoom", roomId, await GetUserId(), await GetUsername());
-        // Explicitly ask for details to populate CurrentRoom immediately
+        // Запрашиваем детали через существующий метод хаба
         await _hubConnection.InvokeAsync("GetRoomDetails", roomId);
     }
 

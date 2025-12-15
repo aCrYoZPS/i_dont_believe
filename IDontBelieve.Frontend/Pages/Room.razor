@@ -8,9 +8,55 @@
 @using IDontBelieve.Core.Models
 
 <div class="container-fluid mt-4">
-    @if (GameService.CurrentRoom == null || RoomService.CurrentState == null)
+    @if (GameService.CurrentRoom == null)
     {
-        <p>Loading Room / Game...</p>
+        <p>Loading room...</p>
+    }
+    else if (RoomService.CurrentState == null)
+    {
+        <div class="row">
+            <div class="col-md-8">
+                <div class="border rounded p-3 h-100">
+                    <h4 class="text-center mb-3">Waiting for game start...</h4>
+                    <p class="text-muted text-center">Host needs to press "Start Game".</p>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="border rounded p-3 h-100 d-flex flex-column">
+                    <h5>@GameService.CurrentRoom.Name</h5>
+                    <p>Status: <strong>@GameService.CurrentRoom.Status</strong></p>
+                    <p>Players: <strong>@GameService.CurrentRoom.CurrentPlayerCount / @GameService.CurrentRoom.MaxPlayers</strong></p>
+
+                    <button class="btn btn-danger btn-sm" @onclick="LeaveRoom">Leave</button>
+
+                    <hr />
+                    <h6>Players</h6>
+                    <ul class="list-group mb-3">
+                        @foreach (var p in GameService.CurrentRoom.Players)
+                        {
+                            <li class="list-group-item d-flex justify-content-between">
+                                @p.Username
+                                @if (p.IsHost)
+                                {
+                                    <span class="badge bg-warning">Host</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+
+                    <div class="mt-auto">
+                        @if (GameService.CurrentRoom.Status == "Waiting"
+                             && GameService.CurrentRoom.Players.Any(p => p.UserId == userId && p.IsHost))
+                        {
+                            <button class="btn btn-success w-100" @onclick="StartGame">
+                                Start Game
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
     }
     else
     {
@@ -66,8 +112,9 @@
 
                             <!-- PLAYER AREA -->
                             @{
-                                var me = game.Players.First(p => p.UserId == userId);
-                                var myTurn = game.CurrentPlayerId == userId;
+                                var me = game.Players.FirstOrDefault(p => p.UserId == userId);
+                                var hand = me?.Hand ?? new List<Card>();
+                                var myTurn = me != null && game.CurrentPlayerId == userId && hand.Count > 0;
                             }
 
                             <div class="player-interface @(myTurn ? "my-turn-active" : "")">
@@ -77,23 +124,36 @@
                                 }
 
                                 <div class="current-player-area">
-                                    <div class="player-badge">You: @me.UserName</div>
+                                    <div class="player-badge">You: @(me?.UserName ?? "Unknown")</div>
 
                                     <div class="my-cards-flex">
-                                        @for (int i = 0; i < me.Hand!.Count; i++)
+                                        @if (hand.Count == 0)
                                         {
-                                            var idx = i;
-                                            <div class="card-ui @(selectedCard == idx ? "selected" : "")"
-                                                 @onclick="() => SelectCard(idx)">
-                                                🂡
-                                            </div>
+                                            <div class="text-muted mb-2">No cards yet. Start the game.</div>
+                                            @if (IsHost)
+                                            {
+                                                <button class="btn btn-success btn-sm" @onclick="StartGame">
+                                                    Start game
+                                                </button>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            @for (int i = 0; i < hand.Count; i++)
+                                            {
+                                                var idx = i;
+                                                <div class="card-ui @(selectedCards.Contains(idx) ? "selected" : "")"
+                                                     @onclick="() => SelectCard(idx)">
+                                                    🂡
+                                                </div>
+                                            }
                                         }
                                     </div>
                                 </div>
 
                                 <div class="controls-column">
                                     <button class="btn-game move"
-                                            disabled="@(selectedCard == -1 || !myTurn)"
+                                            disabled="@(selectedCards.Count == 0 || !myTurn)"
                                             @onclick="HandleMove">
                                         Make a move
                                     </button>
@@ -174,7 +234,10 @@
     [Parameter] public int RoomId { get; set; }
 
     private int userId;
-    private int selectedCard = -1;
+    private HashSet<int> selectedCards = new();
+
+    private bool IsHost =>
+        GameService.CurrentRoom?.Players.Any(p => p.UserId == userId && p.IsHost) == true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -186,12 +249,16 @@
 
         userId = await GameService.GetUserId();
 
+        await RoomService.JoinGameAsync(RoomId, userId, await GameService.GetUsername());
         await RoomService.LoadGameStateAsync(RoomId);
+
+        await AutoStartIfHostAsync();
     }
 
     private async Task StartGame()
     {
         await RoomService.StartGameAsync(RoomId);
+        await RoomService.LoadGameStateAsync(RoomId);
     }
 
     private async Task LeaveRoom()
@@ -202,26 +269,36 @@
 
     private void SelectCard(int index)
     {
-        selectedCard = selectedCard == index ? -1 : index;
+        if (selectedCards.Contains(index))
+            selectedCards.Remove(index);
+        else
+            selectedCards.Add(index);
     }
 
     private async Task HandleMove()
     {
-        if (selectedCard == -1) return;
+        var me = RoomService.CurrentState!
+            .Players.First(p => p.UserId == userId);
 
-        var card = RoomService.CurrentState!
-            .Players.First(p => p.UserId == userId)
-            .Hand![selectedCard];
+        var hand = me.Hand ?? new List<Card>();
+        if (selectedCards.Count == 0) return;
+
+        var cards = selectedCards
+            .Where(i => i >= 0 && i < hand.Count)
+            .Select(i => hand[i])
+            .ToList();
+
+        if (cards.Count == 0) return;
 
         var move = new GameMoveDto
         {
-            Cards = new() { card },
-            ClaimedRank = card.Rank,
+            Cards = cards,
+            ClaimedRank = cards[0].Rank,
             TargetPlayerId = null
         };
 
         await RoomService.MakeMoveAsync(RoomId, userId, move);
-        selectedCard = -1;
+        selectedCards.Clear();
     }
 
     private async Task HandleBelieve()
@@ -232,6 +309,27 @@
     private async Task HandleDoubt()
     {
         await RoomService.BelieveOrNotAsync(RoomId, userId, false);
+    }
+
+    private async Task AutoStartIfHostAsync()
+    {
+        if (IsHost &&
+            GameService.CurrentRoom?.Status == "Waiting" &&
+            GameService.CurrentRoom.Players.Count >= 2)
+        {
+            await RoomService.StartGameAsync(RoomId);
+            await RoomService.LoadGameStateAsync(RoomId);
+            return;
+        }
+
+        // Если игра уже "Playing", но у всех пустые руки, попробуем снова стартовать (на случай сбоя раздачи)
+        if (IsHost &&
+            GameService.CurrentRoom?.Status == "InProgress" &&
+            RoomService.CurrentState?.Players.All(p => (p.Hand?.Count ?? 0) == 0) == true)
+        {
+            await RoomService.StartGameAsync(RoomId);
+            await RoomService.LoadGameStateAsync(RoomId);
+        }
     }
 
     public void Dispose()

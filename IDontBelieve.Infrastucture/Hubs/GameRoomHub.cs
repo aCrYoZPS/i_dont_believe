@@ -299,6 +299,20 @@ public class GameRoomHub : Hub
         }
     }
 
+    public Task<GameRoomDto?> GetRoomDetailsSync(int roomId)
+    {
+        try
+        {
+            var room = _gameRoomService.GetRoomWithPlayersAsync(roomId);
+            return Task.FromResult(room != null ? new GameRoomDto(room) : null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get room details sync for room {RoomId}", roomId);
+            return Task.FromResult<GameRoomDto?>(null);
+        }
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         if (_connectionToUser.TryGetValue(Context.ConnectionId, out var userId))

@@ -11,29 +11,21 @@ namespace IDontBelieve.Infrastructure.Services;
 
 public class GameService : IGameService
 {
-    //private readonly ApplicationDbContext _context;
     private readonly IGameRoomService _gameRoomService;
     private readonly ILogger<GameService> _logger;
 
     private readonly List<GameState> _gameStates = new();
     private readonly List<GameMove> _gameMoves = new();
+    private int _nextGameStateId;
 
-    //public GameService(ApplicationDbContext context, IGameRoomService gameRoomService, ILogger<GameService> logger)
     public GameService(IGameRoomService gameRoomService, ILogger<GameService> logger)
-
     {
-        //_context = context;
         _gameRoomService = gameRoomService;
         _logger = logger;
     }
 
     public async Task<bool> StartGameAsync(int roomId)
     {
-        /*var room = await _context.GameRooms
-            .Include(r => r.Players)
-            .ThenInclude(p => p.User)
-            .FirstOrDefaultAsync(r => r.Id == roomId);*/
-        
         var room = _gameRoomService.GetRoomByIdAsync(roomId);
 
         if (room == null || !room.CanStart || room.Status != GameRoomStatus.Waiting)
@@ -52,26 +44,32 @@ public class GameService : IGameService
             playersList[i].Status = PlayerStatus.Playing;
         }
 
+        var dealtCount = hands.Sum(h => h.Count);
+        var remainingDeck = shuffledDeck.Skip(dealtCount).ToList();
+
         var gameState = new GameState
         {
+            Id = Interlocked.Increment(ref _nextGameStateId),
             GameRoomId = roomId,
-            CurrentPlayerId = playersList[0].UserId, 
-            Deck = new List<Card>(), 
+            GameRoom = room,
+            CurrentPlayerId = playersList[0].UserId,
+            Deck = remainingDeck,
             DiscardPile = new List<Card>(),
             GameBank = 0,
             Phase = GamePhase.Playing,
-            LastMoveAt = DateTime.UtcNow
+            LastMoveAt = DateTime.UtcNow,
+            MoveHistory = new List<GameMove>()
         };
 
-        //_context.GameStates.Add(gameState);
-        
+        room.GameState = gameState;
         room.Status = GameRoomStatus.InProgress;
 
-        //await _context.SaveChangesAsync();
+        _gameStates.RemoveAll(gs => gs.GameRoomId == roomId);
+        _gameStates.Add(gameState);
 
-        _logger.LogInformation("Game started in room {RoomId} with {PlayerCount} players", 
+        _logger.LogInformation("Game started in room {RoomId} with {PlayerCount} players",
             roomId, room.Players.Count);
-        
+
         return true;
     }
 
@@ -85,7 +83,33 @@ public class GameService : IGameService
         
         var gameState = _gameStates.FirstOrDefault(gs => gs.GameRoomId == roomId);
 
-        if (gameState == null) return null;
+        if (gameState == null)
+        {
+            // Если игра ещё не стартовала, вернём "ожидающее" состояние из комнаты
+            var room = _gameRoomService.GetRoomByIdAsync(roomId);
+            if (room == null) return null;
+
+            var waitingPlayers = room.Players.Select(p => new PlayerStateDto
+            {
+                UserId = p.UserId,
+                UserName = p.User.UserName,
+                CardCount = p.Hand?.Count ?? 0,
+                Status = p.Status,
+                Position = p.Position,
+                Hand = p.Hand ?? new List<Card>()
+            }).ToList();
+
+            return new GameStateDto
+            {
+                CurrentPlayerId = room.Players.FirstOrDefault()?.UserId ?? 0,
+                CardsInDeck = 0,
+                CardsInDiscard = 0,
+                Players = waitingPlayers,
+                Phase = GamePhase.Playing,
+                GameBank = 0,
+                LastMoveAt = DateTime.UtcNow
+            };
+        }
 
         var players = gameState.GameRoom.Players.Select(p => new PlayerStateDto
         {
@@ -94,7 +118,7 @@ public class GameService : IGameService
             CardCount = p.Hand.Count,
             Status = p.Status,
             Position = p.Position,
-            Hand = null 
+            Hand = p.Hand 
         }).ToList();
 
         return new GameStateDto
@@ -161,6 +185,7 @@ public class GameService : IGameService
         var gameMove = new GameMove
         {
             GameStateId = gameState.Id,
+            GameState = gameState,
             MoveNumber = gameState.MoveHistory.Count + 1,
             PlayerId = playerId,
             TargetPlayerId = move.TargetPlayerId,
@@ -170,7 +195,7 @@ public class GameService : IGameService
         };
 
         _gameMoves.Add(gameMove);
-        //_context.GameMoves.Add(gameMove);
+        gameState.MoveHistory.Add(gameMove);
 
         if (GameLogic.IsGameEnded(gameState.GameRoom.Players.ToList()))
         {
@@ -298,15 +323,6 @@ public class GameService : IGameService
 
     private async Task<GameState?> GetGameStateWithPlayersAsync(int roomId)
     {
-        /*return await _context.GameStates
-            .Include(gs => gs.GameRoom)
-            .ThenInclude(gr => gr.Players)
-            .ThenInclude(p => p.User)
-            .Include(gs => gs.MoveHistory)
-            .FirstOrDefaultAsync(gs => gs.GameRoomId == roomId);*/
-        
         return _gameStates.FirstOrDefault(gs => gs.GameRoomId == roomId);
     }
 }
-
-

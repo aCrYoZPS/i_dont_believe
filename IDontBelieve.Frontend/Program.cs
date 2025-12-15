@@ -31,7 +31,9 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 // SIGNALR SERVICES (КЛИЕНТСКИЕ)
 builder.Services.AddScoped<GameHubService>();
-builder.Services.AddScoped<IDontBelieve.Frontend.Services.GameService>();
+builder.Services.AddScoped<IDontBelieve.Frontend.Services.GameService>(_ =>
+    new IDontBelieve.Frontend.Services.GameService(
+        builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5000"));
 
 // OTHER HUBS
 builder.Services.AddScoped<ILeaderboardHubService>(provider =>

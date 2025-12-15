@@ -23,5 +23,5 @@ public class GameRoom
     
     public int CurrentPlayersCount => Players.Count;
     public bool IsFull => CurrentPlayersCount >= MaxPlayers;
-    public bool CanStart => CurrentPlayersCount >= 3;
+    public bool CanStart => CurrentPlayersCount >= 2;
 }
